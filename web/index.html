@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>TTS WebSocket Client</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        line-height: 1.6;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .container {
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      button:disabled {
+        background-color: #cccccc;
+        cursor: not-allowed;
+      }
+      .status {
+        margin-top: 20px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .status-message {
+        margin: 5px 0;
+      }
+      .error {
+        color: red;
+      }
+      .success {
+        color: green;
+      }
+      audio {
+        width: 100%;
+        margin-top: 20px;
+      }
+      #audioContainer {
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>TTS WebSocket Client</h1>
+
+    <div class="container">
+      <div class="form-group">
+        <label for="authToken">Authentication Token:</label>
+        <input type="text" id="authToken" value="YOUR_AUTH_TOKEN" />
+      </div>
+
+      <div class="form-group">
+        <label for="query">Text to Synthesize:</label>
+        <input type="text" id="query" value="Xin chào, tôi là một trợ lý ảo." />
+      </div>
+
+      <div class="form-group">
+        <label for="speaker">Speaker:</label>
+        <select id="speaker">
+          <option value="HN-Nam-2-BL" selected>HN-Nam-2-BL</option>
+          <option value="HN-Nu-1-BL">HN-Nu-1-BL</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="language">Language:</label>
+        <select id="language">
+          <option value="vi" selected>Vietnamese</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="speed">Speed:</label>
+        <select id="speed">
+          <option value="0.8">0.8x</option>
+          <option value="1" selected>1.0x</option>
+          <option value="1.2">1.2x</option>
+        </select>
+      </div>
+
+      <button id="connectBtn">Connect</button>
+      <button id="sendBtn" disabled>Send TTS Query</button>
+
+      <div id="audioContainer">
+        <audio id="audioPlayer" controls></audio>
+      </div>
+
+      <div class="status" id="status">
+        <div class="status-message">Ready to connect...</div>
+      </div>
+    </div>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", () => {
+        let websocket = null;
+        let audioChunks = [];
+        let isAuthenticated = false;
+
+        const connectBtn = document.getElementById("connectBtn");
+        const sendBtn = document.getElementById("sendBtn");
+        const statusDiv = document.getElementById("status");
+        const audioPlayer = document.getElementById("audioPlayer");
+
+        // Add status message to the log
+        function addStatus(message, isError = false) {
+          const messageDiv = document.createElement("div");
+          messageDiv.classList.add("status-message");
+          if (isError) messageDiv.classList.add("error");
+          messageDiv.textContent = message;
+          statusDiv.appendChild(messageDiv);
+          statusDiv.scrollTop = statusDiv.scrollHeight;
+        }
+
+        // Connect to WebSocket
+        connectBtn.addEventListener("click", () => {
+          const uri = "ws://blaze.vn/v1/tts/realtime";
+
+          addStatus(`Connecting to ${uri}...`);
+
+          websocket = new WebSocket(uri);
+
+          websocket.onopen = () => {
+            addStatus("Connection established, waiting for success message...");
+            connectBtn.disabled = true;
+          };
+
+          websocket.onmessage = async (event) => {
+            try {
+              // Handle binary data (audio)
+              if (event.data instanceof Blob) {
+                addStatus("Received audio chunk...");
+                audioChunks.push(event.data);
+                return;
+              }
+
+              // Handle text messages (JSON)
+              const message = JSON.parse(event.data);
+              addStatus(`Received: ${JSON.stringify(message)}`);
+
+              if (message.type === "success-connection") {
+                // Send authentication
+                const authToken = document.getElementById("authToken").value;
+                const authMessage = {
+                  token: authToken,
+                  strategy: "token",
+                };
+                websocket.send(JSON.stringify(authMessage));
+                addStatus(`Sent authentication request`);
+              } else if (message.type === "successful-authentication") {
+                addStatus("Authentication successful!", true);
+                isAuthenticated = true;
+                sendBtn.disabled = false;
+              } else if (message.status === "started-byte-stream") {
+                addStatus("Audio stream started, receiving data...");
+                // Reset audio chunks for new stream
+                audioChunks = [];
+              } else if (message.type === "finished-byte-stream") {
+                addStatus("Audio stream complete");
+                // Create audio blob and play it
+                const audioBlob = new Blob(audioChunks, { type: "audio/mp3" });
+                const audioUrl = URL.createObjectURL(audioBlob);
+                audioPlayer.src = audioUrl;
+                audioPlayer.play();
+              }
+            } catch (error) {
+              addStatus(`Error processing message: ${error.message}`, true);
+            }
+          };
+
+          websocket.onerror = (error) => {
+            addStatus(
+              `WebSocket error: ${error.message || "Unknown error"}`,
+              true
+            );
+            connectBtn.disabled = false;
+            sendBtn.disabled = true;
+          };
+
+          websocket.onclose = (event) => {
+            addStatus(
+              `Connection closed. Code: ${event.code}, Reason: ${
+                event.reason || "No reason provided"
+              }`
+            );
+            connectBtn.disabled = false;
+            sendBtn.disabled = true;
+            isAuthenticated = false;
+          };
+        });
+
+        // Send TTS Query
+        sendBtn.addEventListener("click", () => {
+          if (
+            !websocket ||
+            websocket.readyState !== WebSocket.OPEN ||
+            !isAuthenticated
+          ) {
+            addStatus("Not connected or not authenticated", true);
+            return;
+          }
+
+          const query = document.getElementById("query").value;
+          const speaker = document.getElementById("speaker").value;
+          const language = document.getElementById("language").value;
+          const speed = document.getElementById("speed").value;
+
+          if (!query.trim()) {
+            addStatus("Query cannot be empty", true);
+            return;
+          }
+
+          const queryMessage = {
+            query: query,
+            normalization: "basic",
+            language: language,
+            audio_format: "mp3",
+            audio_quality: 32,
+            audio_speed: speed,
+            speaker_id: speaker,
+          };
+
+          websocket.send(JSON.stringify(queryMessage));
+          addStatus(`Sent query: ${query}`);
+        });
+      });
+    </script>
+  </body>
+</html>
