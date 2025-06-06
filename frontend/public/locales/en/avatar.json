@@ -1,0 +1,8 @@
+{
+    "widget": {
+        "connectionStatus": {
+            "connecting": "Connecting...",
+            "connected": "Connected"
+        }
+    }
+}

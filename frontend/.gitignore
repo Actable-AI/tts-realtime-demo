@@ -1,0 +1,8 @@
+
+.pnpm-debug.log*
+dist
+node_modules/
+*.tsbuildinfo
+.eslintcache
+.idea/
+.env.local

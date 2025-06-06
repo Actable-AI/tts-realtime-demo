@@ -1,0 +1,70 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --config ./configs/build/vite.config.ts",
+    "build": "vite build --config ./configs/build/vite.config.ts",
+    "preview": "vite preview --config ./configs/build/vite.config.ts",
+    "clean": "npx rimraf dist",
+    "format": "prettier --write '{src,stylesheets}/**/*.{js,ts,jsx,tsx,html,scss,json}'",
+    "lint": "eslint  \"src/**/*.{js,jsx,ts,tsx}\" --fix",
+    "api": "npm run api:download && npm run api:generate",
+    "api:download": "wget localhost:5000/api/open_api.yaml -O ./src/shared/api/schema.yaml",
+    "api:generate": "orval generate --config ./configs/api/orval.config.ts",
+    "bundle:visualize": "npx vite-bundle-visualizer -c ./configs/build/vite.config.ts"
+  },
+  "dependencies": {
+    "@ant-design/icons": "5.3.6",
+    "@azure-rest/ai-translation-text": "1.0.0-beta.1",
+    "@fingerprintjs/fingerprintjs": "^4.5.1",
+    "@ricky0123/vad-web": "^0.0.24",
+    "@tanstack/react-query": "4.36.1",
+    "antd": "5.16.4",
+    "axios": "1.6.0",
+    "framer-motion": "^11.2.12",
+    "onnxruntime-web": "^1.22.0",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "react-router-dom": "^6.21.1",
+    "styled-components": "^6.1.11"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/node": "^20.12.12",
+    "@types/react": "18.2.37",
+    "@types/react-dom": "18.2.15",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@types/styled-components": "^5.1.34",
+    "@typescript-eslint/eslint-plugin": "6.18.1",
+    "@typescript-eslint/parser": "^6.21.0",
+    "@vitejs/plugin-react": "4.0.4",
+    "babel-plugin-styled-components": "^2.1.4",
+    "dotenv": "^16.4.5",
+    "eslint": "^8.57.0",
+    "eslint-plugin-i18next": "^5.2.1",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.8.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "husky": "^7.0.4",
+    "i18next": "^23.11.5",
+    "i18next-browser-languagedetector": "^6.1.8",
+    "i18next-http-backend": "^1.4.5",
+    "orval": "^6.29.1",
+    "prettier": "2.8.8",
+    "react-i18next": "13.5.0",
+    "terser": "^5.31.0",
+    "typescript": "5.2.2",
+    "vite": "4.4.9",
+    "vite-tsconfig-paths": "4.2.1"
+  },
+  "browserslist": {
+    "production": "Edge >= 18, Firefox >= 60, Chrome >= 61, Safari >= 11, Opera >= 48",
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version"
+    ]
+  }
+}

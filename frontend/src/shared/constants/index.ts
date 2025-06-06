@@ -1,0 +1,21 @@
+enum FREE_USER_USAGE_ENUM {
+  ON = 'ON',
+  OFF = 'OFF',
+}
+
+enum MONOLOGUE_ENUM {
+  ON = 'ON',
+  OFF = 'OFF',
+}
+
+enum SPEECH_ONLY_ENUM {
+  ON = 'ON',
+  OFF = 'OFF',
+}
+
+enum AUTO_DETECT_FLAG {
+  ON = 'ON',
+  OFF = 'OFF',
+}
+
+export { FREE_USER_USAGE_ENUM, MONOLOGUE_ENUM, SPEECH_ONLY_ENUM, AUTO_DETECT_FLAG };

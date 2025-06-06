@@ -1,0 +1,1 @@
+export { initialAnimation } from './initial';
