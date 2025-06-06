@@ -7,7 +7,7 @@ import websockets
 
 
 async def tts_client():
-    uri = "ws://blaze.vn/v1/tts/realtime"
+    uri = "wss://api.blaze.vn/v1/tts/realtime"
 
     print(f"Connecting to {uri}...")
     async with websockets.connect(uri) as websocket:
@@ -18,7 +18,7 @@ async def tts_client():
         response_data = json.loads(response)
         print(f"Received: {response_data}")
 
-        if response_data.get("type") == "success-connection":
+        if response_data.get("type") == "successful-connection":
             # Send authentication token
             auth_message = {
                 "token": "YOUR_AUTH_TOKEN",

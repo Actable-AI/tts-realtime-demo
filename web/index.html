@@ -147,7 +147,7 @@
 
         // Connect to WebSocket
         connectBtn.addEventListener("click", () => {
-          const uri = "ws://blaze.vn/v1/tts/realtime";
+          const uri = "wss://api.blaze.vn/v1/tts/realtime";
 
           addStatus(`Connecting to ${uri}...`);
 
@@ -171,7 +171,7 @@
               const message = JSON.parse(event.data);
               addStatus(`Received: ${JSON.stringify(message)}`);
 
-              if (message.type === "success-connection") {
+              if (message.type === "successful-connection") {
                 // Send authentication
                 const authToken = document.getElementById("authToken").value;
                 const authMessage = {

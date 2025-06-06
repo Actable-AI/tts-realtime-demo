@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 
 async function ttsClient() {
-  const uri = "ws://blaze.vn/v1/tts/realtime";
+  const uri = "wss://api.blaze.vn/v1/tts/realtime";
 
   console.log(`Connecting to ${uri}...`);
   const websocket = new WebSocket(uri);
@@ -88,7 +88,7 @@ async function ttsClient() {
     console.log(`Parsed message: ${JSON.stringify(message)}`);
 
     // Handle different message types
-    if (message.type === "success-connection") {
+    if (message.type === "successful-connection") {
       console.log("Received success connection message");
 
       // Send authentication token
@@ -144,7 +144,7 @@ async function ttsClient() {
         .toISOString()
         .replace(/[:.]/g, "")
         .replace("T", "_")
-        .slice(0, 15);
+        .slice(0, 19);
       filename = `output/tts_output_${timestamp}.mp3`;
 
       console.log(`Starting to receive audio stream, saving to ${filename}...`);
