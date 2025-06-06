@@ -1,1 +1,0 @@
-export { mobileWindowSizeConfig } from './mobile';

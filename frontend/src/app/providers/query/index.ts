@@ -1,1 +1,0 @@
-export { QueryProvider } from './ui';

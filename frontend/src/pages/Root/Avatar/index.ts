@@ -1,1 +1,0 @@
-export { Avatar } from './ui/widgets/Avatar';
