@@ -2,452 +2,82 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>Actable AI</title>
+  
+  <link rel="stylesheet" href="./style.css">
 
-  <!-- React + Babel -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-  <!-- Ant Design JS -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/antd/4.22.3/antd.min.css"
-        integrity="sha512-GDVrBvnaB7LFVMYIQ1urzDyQezzhPbr1BMdWFk1M3dDdTd/DIC67JnKQwj0agxd6i7JNOL4VLoy5V5xN0VIPMw=="
-        crossorigin="anonymous" referrerpolicy="no-referrer"/>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/antd/4.22.3/antd.min.js"
-          integrity="sha512-Mh67Dx66Plg6K7UPD17ww5CofBh7Z6sVzjxt2xb/yuCtWEp4AgKiRQLP2KGldnIBSXZX2NnVOYUm3+LyqLJ82g=="
-          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-
-  <!-- Axios -->
-  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
 
   <!-- VAD Web + ONNX Runtime -->
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
-
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      line-height: 1.6;
-    }
-
-    .main-layout {
-      display: flex;
-      flex-direction: column;
-      flex-wrap: nowrap;
-      justify-content: flex-start;
-      align-items: center;
-      align-content: flex-start;
-      padding: 20px;
-      width: 100%;
-      height: 100vh;
-    }
-
-    .layout {
-      width: 100%;
-      max-width: 424px;
-    }
-
-    .btn-group {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-    }
-
-    .btn-group button {
-      width: 120px;
-    }
-  </style>
 </head>
 <body>
-<!--React render-->
-<div id="root"></div>
+  <div class="main-layout">
+    <div class="layout">
+      <form id="voiceForm">
+        <h2>Voice-bot realtime</h2>
 
-<!-- Script React (JSX) -->
-<script type="text/babel">
-  // Constants and Enums
-  const MicrophoneStatusEnum = {
-    loading: 'loading',
-    idle: 'idle',
-    recording: 'recording',
-    error: 'error',
-    talking: 'talking',
-  };
+        <div id="layoutVideo" class="layout-video">
+          <div id="gradientRingWrap" class="gradient-ring-wrap">
+              <div id="gradientRing" class="gradient-ring"></div>
+          </div>
 
-  const disabledMicrophoneStatuses = [
-    MicrophoneStatusEnum.loading,
-    MicrophoneStatusEnum.talking,
-    MicrophoneStatusEnum.error,
-  ];
+          <div id="avatarVideoWrap" class="avatar-video-wrap">
+              <img src="./ky_duyen.png" alt="" />
 
-  // API Configuration
-  const baseUrl = "https://api.blaze.vn/v1";
-  const uri = baseUrl?.replace(/^https?/, (protocol) => (protocol === 'https' ? 'wss' : 'ws'));
-  const {Form, Button, Input} = window["antd"];
+              <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline class="avatar-video"></video>
+          </div>
+      </div>
 
-  // Main App Component
-  function App() {
-    // React Hooks
-    const {useMemo, useRef, useState} = React;
-    const [form] = Form.useForm();
+        <div class="form-item">
+          <label for="authToken" class="required">Authentication Token</label>
+          <input type="text" id="authToken" required>
+        </div>
 
-    // Refs
-    const vadRef = useRef(null);
-    const wsRef = useRef(null);
-    const audioRef = useRef(null);
+        <div class="form-item">
+          <label for="openApiKey" class="required">Open API Key</label>
+          <input type="text" id="openApiKey" required>
+        </div>
 
-    // State Management
-    const [isStartRecoding, setIsStartRecoding] = useState(false);
-    const [microphoneStatus, setMicrophoneStatus] = useState(MicrophoneStatusEnum.idle);
-    const [authToken, setAuthToken] = useState('');
-    const [transcript, setTranscript] = useState('');
-    // const [textToSynthesize, setTextToSynthesize] = useState('');
-    const [audioChunks, setAudioChunks] = useState([]);
+        <div class="form-item">
+          <label for="prompt" class="required">Prompt</label>
+          <textarea id="prompt" required></textarea>
+        </div>
 
-    // Derived State
-    const isLoading = useMemo(
-        () => microphoneStatus === MicrophoneStatusEnum.loading,
-        [microphoneStatus],
-    );
+        <div class="form-item">
+          <label for="speaker">Speaker</label>
+          <select id="speaker"></select>
+        </div>
 
-    const isRecordingDisabled = useMemo(
-        () => disabledMicrophoneStatuses.includes(microphoneStatus),
-        [microphoneStatus],
-    );
+        <!-- <div class="form-item">
+          <label for="stt">Speech to Text</label>
+          <textarea id="stt" readonly></textarea>
+        </div>
 
-    // const isSendTtsDisabled = useMemo(
-    //   () => wsRef?.current?.readyState !== WebSocket.OPEN || isRecordingDisabled || !textToSynthesize?.trim(),
-    //   [wsRef, isRecordingDisabled, textToSynthesize],
-    // );
+        <div class="form-item">
+          <label for="tts">Text to Speech</label>
+          <textarea id="tts" readonly></textarea>
+        </div> -->
 
-    // Speech-to-Text Handler
-    const handleStt = async (data) => {
-      try {
-        setMicrophoneStatus(MicrophoneStatusEnum.loading);
-        const headers = {
-          Authorization: `Bearer ${authToken}`,
-        };
+        <div class="form-item">
+          <label for="message">Message</label>
+          <textarea id="message" readonly></textarea>
+        </div>
 
-        const wavBuffer = vad.utils.encodeWAV(data);
-        const audioBlob = new Blob([wavBuffer], {type: 'audio/wav'});
-        const formData = new FormData();
-        formData.append('audio_file', audioBlob, 'audio.wav');
-
-        const result = await axios.post(`${baseUrl}/stt/execute?lazy_process=false`, formData, {
-          headers: {
-            ...headers,
-            'Content-Type': 'multipart/form-data'
-          },
-        });
-
-        setTranscript(
-            (transcript) => {
-              const text = transcript + (transcript ? '\n\n' : '') + result?.data?.result?.data?.raw_text
-              form.setFieldValue('transcript', text)
-              return text
-            }
-        );
-        handleJsonMessage({text: result?.data?.result?.data?.raw_text});
-      } catch (error) {
-        console.error('STT Error:', error);
-      }
-    };
-
-    // VAD Initialization
-    const initializeVAD = async () => {
-      try {
-        vadRef.current = await vad.MicVAD.new({
-          onSpeechStart: () => {
-            console.log('Speech start detected');
-          },
-          onSpeechEnd: (audio) => {
-            console.log('Speech end detected');
-            setMicrophoneStatus((microphoneStatus) => {
-              if (!disabledMicrophoneStatuses.includes(microphoneStatus)) handleStt(audio);
-              return microphoneStatus;
-            });
-          },
-        });
-      } catch (error) {
-        console.error('VAD initialization error:', error);
-      }
-    };
-
-    // State Management Functions
-    const handleClearState = () => {
-      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-        wsRef.current?.close();
-        wsRef.current = null;
-      }
-      setIsStartRecoding(false);
-      setMicrophoneStatus(MicrophoneStatusEnum.idle);
-    };
-
-    const handleReset = async () => {
-      if (vadRef.current) {
-        await vadRef.current.destroy();
-        vadRef.current = null;
-      }
-      form.setFieldValue("transcript", "");
-      setTranscript('');
-      // setTextToSynthesize('');
-      handleClearState();
-    };
-
-    // WebSocket and TTS Functions
-    const ttsClient = () => {
-      const websocket = new WebSocket(`${uri}/tts/realtime`);
-      wsRef.current = websocket;
-
-      const connectionTimeout = setTimeout(() => {
-        console.log('WebSocket readyState:', websocket.readyState);
-      }, 5000);
-
-      websocket.onopen = () => {
-        console.log('Connection established, waiting for success message...');
-        clearTimeout(connectionTimeout);
-      };
-
-      websocket.onmessage = async (event) => {
-        try {
-          if (event.data instanceof Blob) {
-            setAudioChunks((prevChunks) => [...prevChunks, event.data]);
-            return;
-          }
-          const message = JSON.parse(event.data);
-          handleJsonMessage({message});
-        } catch (error) {
-          console.error('Error processing message:', error);
-          if (error.message?.includes('fatal') || error.message?.includes('connection')) {
-            websocket.close();
-          }
-        }
-      };
-
-      websocket.onerror = (event) => {
-        console.error('WebSocket error:', event);
-        handleClearState();
-      };
-
-      websocket.onclose = (event) => {
-        console.log(`Connection closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
-        handleClearState();
-      };
-    };
-
-    // Message Handler
-    const handleJsonMessage = ({message, text}) => {
-      if (text && wsRef.current?.readyState === WebSocket.OPEN) {
-        const queryMessage = {
-          query: text,
-          normalization: 'basic',
-          language: 'vi',
-          audio_format: 'mp3',
-          audio_quality: 32,
-          audio_speed: '1',
-          speaker_id: 'HN-Nam-2-BL',
-        };
-        wsRef.current.send(JSON.stringify(queryMessage));
-        // form.setFieldValue('textToSynthesize', '')
-        // setTextToSynthesize('')
-        return;
-      }
-
-      switch (message?.type) {
-        case 'successful-connection':
-          console.log('Connection successful, sending authentication...');
-          if (wsRef.current?.readyState === WebSocket.OPEN) {
-            const authMessage = {
-              token: authToken,
-              strategy: 'token',
-            };
-            wsRef.current.send(JSON.stringify(authMessage));
-          }
-          break;
-
-        case 'successful-authentication':
-          setTimeout(() => {
-            const queryMessage = {
-              query: 'Xin chào.',
-              normalization: 'basic',
-              language: 'vi',
-              audio_format: 'mp3',
-              audio_quality: 32,
-              audio_speed: '1',
-              speaker_id: 'HN-Nam-2-BL',
-            };
-            if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(queryMessage));
-          }, 100);
-
-          setTimeout(() => {
-            const queryMessage = {
-              query: 'Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?',
-              normalization: 'basic',
-              language: 'vi',
-              audio_format: 'mp3',
-              audio_quality: 32,
-              audio_speed: '1',
-              speaker_id: 'HN-Nam-2-BL',
-            };
-            if (wsRef.current?.readyState === WebSocket.OPEN) wsRef.current.send(JSON.stringify(queryMessage));
-          }, 500);
-          break;
-
-        case 'processing-request':
-          setMicrophoneStatus(MicrophoneStatusEnum.loading);
-          break;
-
-        case 'started-byte-stream':
-          setAudioChunks([]);
-          break;
-
-        case 'finished-byte-stream':
-          console.log('Audio stream finished, playing audio...');
-          setAudioChunks((prevChunks) => {
-            const audioBlob = new Blob(prevChunks, {type: 'audio/mp3'});
-            const audioUrl = URL.createObjectURL(audioBlob);
-
-            if (audioRef.current) {
-              audioRef.current.src = audioUrl;
-              setMicrophoneStatus(MicrophoneStatusEnum.talking);
-
-              audioRef.current.addEventListener(
-                  'loadedmetadata',
-                  () => {
-                    if (audioRef.current) {
-                      audioRef.current
-                          .play()
-                          .then(() => {
-                            setTimeout(() => {
-                              setIsStartRecoding((isStartRecoding) => {
-                                if (isStartRecoding) setMicrophoneStatus(MicrophoneStatusEnum.recording);
-                                else setMicrophoneStatus(MicrophoneStatusEnum.idle);
-                                return isStartRecoding;
-                              });
-                            }, (audioRef.current?.duration || 1) * 1000);
-                          })
-                          .catch(() => {
-                            setIsStartRecoding((isStartRecoding) => {
-                              if (isStartRecoding) setMicrophoneStatus(MicrophoneStatusEnum.recording);
-                              else setMicrophoneStatus(MicrophoneStatusEnum.idle);
-                              return isStartRecoding;
-                            });
-                          });
-                    }
-                  },
-                  {once: true},
-              );
-            }
-            return prevChunks;
-          });
-          setAudioChunks([]);
-          break;
-
-        default:
-          console.log('Unhandled message type:', message?.type);
-      }
-    };
-
-    // Form Handlers
-    const onFinish = async () => {
-      setIsStartRecoding(!isStartRecoding);
-
-      if (microphoneStatus === MicrophoneStatusEnum.recording) {
-        setMicrophoneStatus(MicrophoneStatusEnum.idle);
-        if (vadRef.current) {
-          await vadRef.current.destroy();
-          vadRef.current = null;
-        }
-      } else {
-        setMicrophoneStatus(MicrophoneStatusEnum.loading);
-        ttsClient();
-        if (vadRef.current) {
-          await vadRef.current.start();
-        } else {
-          await initializeVAD();
-          await vadRef.current.start();
-        }
-        setMicrophoneStatus(MicrophoneStatusEnum.recording);
-      }
-    };
-
-    // const handleSendTts = () => {
-    //   if (isSendTtsDisabled) return
-    //
-    //   handleJsonMessage({text: textToSynthesize + "."})
-    // }
-
-    // Render
-    return (
-        <div className="main-layout">
-          <div className="layout">
-            <Form
-                name="basic"
-                form={form}
-                layout="vertical"
-                style={{maxWidth: 600}}
-                onFinish={onFinish}
-                autoComplete="off"
-            >
-              <h2 style={{textAlign: "center"}}>Voice-bot realtime</h2>
-
-              <Form.Item
-                  label="Authentication Token"
-                  name="authToken"
-                  rules={[{required: true, message: 'Please input your Authentication Token!'}]}
-              >
-                <Input onChange={(e) => setAuthToken(e.target.value)}/>
-              </Form.Item>
-
-              {/*<Form.Item*/}
-              {/*  label="Text to Synthesize"*/}
-              {/*  name="textToSynthesize"*/}
-              {/*>*/}
-              {/*  <Input onChange={(e) => setTextToSynthesize(e.target.value)}/>*/}
-              {/*</Form.Item>*/}
-
-              <Form.Item
-                  label="Speech to Text"
-                  name="transcript"
-              >
-                <Input.TextArea rows={6} autoSize={{minRows: 6, maxRows: 12}} readOnly/>
-              </Form.Item>
-
-              <Form.Item label={null}>
-                <div className="btn-group">
-                  <Button onClick={handleReset}>
-                    Reset
-                  </Button>
-
-                  <Button
-                      type={isStartRecoding ? "danger" : "primary"}
-                      htmlType="submit"
-                      loading={microphoneStatus === MicrophoneStatusEnum.loading}
-                      disabled={isRecordingDisabled}
-                  >
-                    {isLoading ? 'Loading' : isStartRecoding ? "Stop" : "Start"}
-                  </Button>
-
-                  {/*<Button*/}
-                  {/*  type="primary"*/}
-                  {/*  disabled={isSendTtsDisabled}*/}
-                  {/*  onClick={handleSendTts}*/}
-                  {/*>*/}
-                  {/*  Send TTS*/}
-                  {/*</Button>*/}
-                </div>
-              </Form.Item>
-            </Form>
-
-            <audio ref={audioRef} autoPlay/>
+        <div class="form-item">
+          <div class="btn-group">
+            <button type="button" id="resetButton" class="btn">Reset</button>
+            <button type="button" id="startButton" class="btn btn-primary">Start</button>
           </div>
         </div>
-    );
-  }
+      </form>
 
-  // Render App
-  const root = ReactDOM.createRoot(document.getElementById('root'));
-  root.render(<App/>);
+      <audio id="audioElement" autoplay></audio>
+    </div>
+  </div>
 
-</script>
+  <script src="./app.js"></script>
 </body>
 </html>
