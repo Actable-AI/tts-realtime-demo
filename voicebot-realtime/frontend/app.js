@@ -15,7 +15,7 @@ const disabledMicrophoneStatuses = [
 
 // API Configuration
 const baseUrl = "https://api.blaze.vn/v1";
-const openAiUrl = "http://localhost:8080";
+const openAiUrl = "https://voice-stream.blaze.vn";
 const uri = baseUrl?.replace(/^https?/, (protocol) => (protocol === 'https' ? 'wss' : 'ws'));
 const openAiUri = openAiUrl?.replace(/^https?/, (protocol) => (protocol === 'https' ? 'wss' : 'ws'));
 
