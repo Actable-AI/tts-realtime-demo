@@ -1,0 +1,16 @@
+name: Release Frontend
+on:
+  push:
+    branches:
+      - main
+jobs:
+  build:
+    runs-on: a5000
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Rolling out deployment
+        env:
+          DEPLOY_DIR: /srv/blaze/deployment/tts-realtime-demo
+        run: |
+          rsync -a --delete ${{ github.workspace }}/ $DEPLOY_DIR/
