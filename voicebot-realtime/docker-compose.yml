@@ -6,9 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8083:8083"
-    volumes:
-      - .:/app
+      - "127.0.0.1:8083:8083"
     environment:
       - PYTHONUNBUFFERED=1
     restart: unless-stopped 
