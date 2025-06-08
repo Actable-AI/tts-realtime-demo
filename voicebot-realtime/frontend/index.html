@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Actable AI</title>
+  
+  <link rel="stylesheet" href="./style.css">
+
+
+  <!-- VAD Web + ONNX Runtime -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
+</head>
+<body>
+  <div class="main-layout">
+    <div class="layout">
+      <form id="voiceForm">
+        <h2>Voice-bot realtime</h2>
+
+        <div id="layoutVideo" class="layout-video">
+          <div id="gradientRingWrap" class="gradient-ring-wrap">
+              <div id="gradientRing" class="gradient-ring"></div>
+          </div>
+
+          <div id="avatarVideoWrap" class="avatar-video-wrap">
+              <img src="./ky_duyen.png" alt="" />
+
+              <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline class="avatar-video"></video>
+          </div>
+      </div>
+
+        <div class="form-item">
+          <label for="authToken" class="required">Authentication Token</label>
+          <input type="text" id="authToken" required>
+        </div>
+
+        <div class="form-item">
+          <label for="openApiKey" class="required">Open API Key</label>
+          <input type="text" id="openApiKey" required>
+        </div>
+
+        <div class="form-item">
+          <label for="prompt" class="required">Prompt</label>
+          <textarea id="prompt" required></textarea>
+        </div>
+
+        <div class="form-item">
+          <label for="speaker">Speaker</label>
+          <select id="speaker"></select>
+        </div>
+
+        <!-- <div class="form-item">
+          <label for="stt">Speech to Text</label>
+          <textarea id="stt" readonly></textarea>
+        </div>
+
+        <div class="form-item">
+          <label for="tts">Text to Speech</label>
+          <textarea id="tts" readonly></textarea>
+        </div> -->
+
+        <div class="form-item">
+          <label for="message">Message</label>
+          <textarea id="message" readonly></textarea>
+        </div>
+
+        <div class="form-item">
+          <div class="btn-group">
+            <button type="button" id="resetButton" class="btn">Reset</button>
+            <button type="button" id="startButton" class="btn btn-primary">Start</button>
+          </div>
+        </div>
+      </form>
+
+      <audio id="audioElement" autoplay></audio>
+    </div>
+  </div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #f5f5f5;
+}
+
+.main-layout {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  min-height: 100vh;
+  box-sizing: border-box;
+}
+
+.layout {
+  width: 100%;
+  max-width: 767px;
+  background: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-sizing: border-box;
+}
+
+.form-item {
+  margin-bottom: 24px;
+}
+
+.form-item label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.form-item label.required::before {
+  content: '*';
+  color: #ff4d4f;
+  margin-right: 4px;
+}
+
+.form-item .error-message {
+  color: #ff4d4f;
+  font-size: 12px;
+  margin-top: 4px;
+  display: none;
+}
+
+.form-item input,
+.form-item textarea,
+.form-item select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+.form-item select option {
+  padding: 8px 12px;
+  font-size: 14px;
+  background-color: white;
+  color: #333;
+}
+
+.form-item select option:hover,
+.form-item select option:focus {
+  background-color: #f5f5f5;
+}
+
+.form-item input:focus,
+.form-item textarea:focus,
+.form-item select:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.form-item input.error,
+.form-item textarea.error,
+.form-item select.error {
+  border-color: #ff4d4f;
+}
+
+.form-item input.error:focus,
+.form-item textarea.error:focus,
+.form-item select.error:focus {
+  box-shadow: 0 0 0 2px rgba(255, 77, 79, 0.2);
+}
+
+.form-item textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.btn-group {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  transition: all 0.3s;
+  min-width: 120px;
+}
+
+.btn-primary {
+  background-color: #4a90e2;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #357abd;
+}
+
+.btn-danger {
+  background-color: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c0392b;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-loading {
+  position: relative;
+  padding-left: 32px;
+}
+
+.btn-loading::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin-top: -10px;
+  border: 2px solid #fff;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: btn-loading 1s infinite linear;
+}
+
+@keyframes btn-loading {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+h2 {
+  text-align: center;
+  color: #333;
+  margin-bottom: 24px;
+}
+
+.layout-video {
+  position: relative;
+  margin: 24px 0;
+  display: flex;
+  justify-content: center;
+}
+
+.avatar-video-wrap {
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  overflow: hidden;
+  position: relative;
+
+  @media screen and (max-width: 424px) {
+    width: 240px;
+    height: 240px;
+  }
+}
+
+.avatar-video-wrap img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+}
+
+.avatar-video-wrap video {
+  height: 320px;
+  width: 320px;
+  transition: opacity 0.3s ease;
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  z-index: 9;
+
+  @media screen and (max-width: 424px) {
+    width: 260px;
+    height: 260px;
+  }
+}
+
+.gradient-ring-wrap {
+  width: 320px;
+  height: 320px;
+  position: absolute;
+  margin-top: -10px;
+  margin-left: 0;
+  overflow: hidden;
+
+  @media screen and (max-width: 424px) {
+    width: 260px;
+    height: 260px;
+  }
+}
+
+.gradient-ring {
+  width: 310px;
+  height: 310px;
+  margin-top: 5px;
+  margin-left: 5px;
+  border-radius: 50%;
+  background: conic-gradient(
+      #00cae7,
+      white,
+      #00cae7
+  );
+  filter: blur(4px) brightness(1.1);
+  animation: spin 3s linear infinite;
+
+  @media screen and (max-width: 424px) {
+    width: 250px;
+    height: 250px;
+  }
+}
+
+@keyframes spin {
+  to {
+      transform: rotate(360deg);
+  }
+}
