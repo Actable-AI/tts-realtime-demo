@@ -1,5 +1,0 @@
-asyncio
-fastapi
-uvicorn
-websockets
-openai==0.28.0

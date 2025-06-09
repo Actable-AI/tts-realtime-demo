@@ -15,9 +15,8 @@ const disabledMicrophoneStatuses = [
 
 // API Configuration
 const baseUrl = "https://api.blaze.vn/v1";
-const openAiUrl = "https://voice-stream.blaze.vn";
+const openAiUrl = "https://api.openai.com/v1/chat/completions";
 const uri = baseUrl?.replace(/^https?/, (protocol) => (protocol === 'https' ? 'wss' : 'ws'));
-const openAiUri = openAiUrl?.replace(/^https?/, (protocol) => (protocol === 'https' ? 'wss' : 'ws'));
 
 // DOM Elements
 const authTokenInput = document.getElementById('authToken');
@@ -139,19 +138,13 @@ const handleStt = async (data) => {
     }
 
     const result = await response.json();
-    
+
     // Add user message to message textarea
-    if(messageTextarea.value) messageTextarea.value += '\n\n'
+    if (messageTextarea.value) messageTextarea.value += '\n\n'
     messageTextarea.value += `> User: ${result?.result?.data?.raw_text}\n`;
     messageTextarea.scrollTop = messageTextarea.scrollHeight;
-    
-    if (wsOpenAiRef && wsOpenAiRef.readyState === WebSocket.OPEN) {
-      wsOpenAiRef.send(JSON.stringify({
-        api_key: openApiKey,
-        prompt: prompt,
-        text: result?.result?.data?.raw_text
-      }));
-    }
+
+    streamOpenAI(result?.result?.data?.raw_text, handleStreamText)
   } catch (error) {
     console.error('STT Error:', error);
   }
@@ -243,52 +236,120 @@ const ttsClient = () => {
   };
 };
 
-// Stream open ai
-const streamOpenAI = () => {
-  const websocket = new WebSocket(`${openAiUri}/ws/chat`);
-  wsOpenAiRef = websocket;
-
-  websocket.onopen = () => {
-    console.log('Connection open ai established, waiting for success message...');
-  };
-
-  websocket.onmessage = (event) => {
-    if (event.data === "[DONE]") {
+// Handle response stream
+const handleStreamText = (token) => {
+  if (token === "[DONE]") {
+    messageTextarea.scrollTop = messageTextarea.scrollHeight;
+    tts = ""
+    ttsTmp = ""
+  } else {
+    ttsTmp += token;
+    const lastChar = ttsTmp.slice(-1);
+    const punctuation = ['.', ',', '!', '?', ';', ':'];
+    if (lastChar === ' ' || punctuation.includes(lastChar)) {
+      if (!tts) {
+        tts = '> Assistant: ' + ttsTmp;
+        messageTextarea.value += '> Assistant: ' + ttsTmp;
+      } else {
+        tts += ttsTmp;
+        messageTextarea.value += ttsTmp;
+      }
       messageTextarea.scrollTop = messageTextarea.scrollHeight;
-      tts = ""
+      handleJsonMessage({text: ttsTmp})
       ttsTmp = ""
-    } else if (event.data.startsWith("[ERROR]")) {
-      alert(event.data);
-      handleClearState()
-    } else {
-      ttsTmp += event.data;
-      const lastChar = ttsTmp.slice(-1);
-      const punctuation = ['.', ',', '!', '?', ';', ':'];
-      if (lastChar === ' ' || punctuation.includes(lastChar)) {
-        if (!tts) {
-          tts = '> Assistant: ' + ttsTmp;
-          messageTextarea.value += '> Assistant: ' + ttsTmp;
-        } else {
-          tts += ttsTmp;
-          messageTextarea.value += ttsTmp;
-        }
-        messageTextarea.scrollTop = messageTextarea.scrollHeight;
-        handleJsonMessage({text: ttsTmp})
-        ttsTmp = ""
+    }
+  }
+}
+
+// Stream open ai
+const streamOpenAI = async (text, onWord) => {
+  const messages = [
+    {"role": "system", "content": prompt},
+    {"role": "user", "content": text},
+  ]
+  const response = await fetch(openAiUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${openApiKey}`,
+    },
+    body: JSON.stringify({
+      model: "gpt-4o-mini",
+      messages: messages,
+      stream: true,
+    }),
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+  let fullText = "";
+  const wordQueue = [];
+  let isDone = false;
+
+  (async function processQueue() {
+    while (!isDone || wordQueue.length > 0) {
+      if (wordQueue.length > 0) {
+        const word = wordQueue.shift();
+        await onWord(word);
+        await new Promise(res => setTimeout(res, 100));
+      } else {
+        await new Promise(res => setTimeout(res, 20));
       }
     }
-  };
 
-  websocket.onerror = (event) => {
-    console.error('WebSocket Stream open ai error:', event);
-    handleClearState();
-    alert("WebSocket error")
-  };
+    if (fullText.trim() !== "") {
+      const remainingWords = fullText.match(/\S+\s*/g);
+      if (remainingWords) {
+        for (const word of remainingWords) {
+          await onWord(word);
+          await new Promise(res => setTimeout(res, 100));
+        }
+      }
+    }
+    await onWord("[DONE]");
+  })();
 
-  websocket.onclose = (event) => {
-    console.log(`Connection Stream open ai. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
-    handleClearState();
-  };
+  while (true) {
+    const {value, done} = await reader.read();
+    if (done) break;
+
+    const chunk = decoder.decode(value, {stream: true});
+    buffer += chunk;
+
+    const lines = buffer.split("\n").filter(line => line.trim() !== "");
+
+    for (const line of lines) {
+      if (line.startsWith("data:")) {
+        const data = line.replace("data: ", "");
+
+        if (data === "[DONE]") {
+          isDone = true;
+          return;
+        }
+
+        try {
+          const parsed = JSON.parse(data);
+          const delta = parsed.choices?.[0]?.delta?.content;
+          if (delta) {
+            fullText += delta;
+
+            const words = fullText.match(/\S+\s*/g);
+            if (words && words.length > 1) {
+              for (let i = 0; i < words.length - 1; i++) {
+                wordQueue.push(words[i]);
+              }
+              fullText = words[words.length - 1];
+            }
+          }
+        } catch (e) {
+          console.error("Parse error:", e);
+        }
+      }
+    }
+
+    buffer = "";
+  }
 }
 
 // Audio Handler
@@ -341,8 +402,8 @@ const handleJsonMessage = ({message, text}) => {
       speaker_id: currentSpeaker,
     };
     wsRef.send(JSON.stringify(queryMessage));
-    
-    
+
+
     return;
   }
 
@@ -483,22 +544,12 @@ const handleStart = async () => {
   } else {
     setMicrophoneStatus(MicrophoneStatusEnum.loading);
 
-    // Check microphone permission first
-    // const hasPermission = await checkMicrophonePermission();
-    // if (!hasPermission) {
-    //   setMicrophoneStatus(MicrophoneStatusEnum.error);
-    //   alert('Please allow microphone access to use this feature.');
-    //   return;
-    // }
-
-    
     if (vadRef) {
       await vadRef.start();
     } else {
       await initializeVAD();
       await vadRef.start();
       ttsClient();
-      streamOpenAI();
     }
     setMicrophoneStatus(MicrophoneStatusEnum.recording);
   }
@@ -525,7 +576,7 @@ startButton.addEventListener('click', handleStart);
 resetButton.addEventListener('click', handleReset);
 
 // Initialize APP
-fetchSpeakers();
 promptTextarea.value = DEFAULT_SYSTEM_PROMPT;
 prompt = DEFAULT_SYSTEM_PROMPT;
+fetchSpeakers();
 updateUI();
