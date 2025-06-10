@@ -5,79 +5,541 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <title>Actable AI</title>
-  
-  <link rel="stylesheet" href="./style.css">
 
+  <link rel="stylesheet" href="./style.css">
 
   <!-- VAD Web + ONNX Runtime -->
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
 </head>
 <body>
-  <div class="main-layout">
-    <div class="layout">
-      <form id="voiceForm">
-        <h2>Voice-bot realtime</h2>
+<div class="main-layout">
+  <div class="layout">
+    <form id="voiceForm">
+      <h2>Voice-bot realtime</h2>
 
-        <div id="layoutVideo" class="layout-video">
-          <div id="gradientRingWrap" class="gradient-ring-wrap">
-              <div id="gradientRing" class="gradient-ring"></div>
-          </div>
+      <div id="layoutVideo" class="layout-video">
+        <div id="gradientRingWrap" class="gradient-ring-wrap">
+          <div id="gradientRing" class="gradient-ring"></div>
+        </div>
 
-          <div id="avatarVideoWrap" class="avatar-video-wrap">
-              <img src="./ky_duyen.png" alt="" />
-
-              <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline class="avatar-video"></video>
-          </div>
+        <div id="avatarVideoWrap" class="avatar-video-wrap">
+          <img src="./ky_duyen.png" alt=""/>
+          <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline
+                 class="avatar-video"></video>
+        </div>
       </div>
 
-        <div class="form-item">
-          <label for="authToken" class="required">Authentication Token</label>
-          <input type="text" id="authToken" required>
+      <div class="form-item">
+        <label for="authToken" class="required">Authentication Token</label>
+        <input type="text" id="authToken" required>
+      </div>
+
+      <div class="form-item">
+        <label for="openApiKey" class="required">Open API Key</label>
+        <input type="text" id="openApiKey" required>
+      </div>
+
+      <div class="form-item">
+        <label for="prompt" class="required">Prompt</label>
+        <textarea id="prompt" required></textarea>
+      </div>
+
+      <div class="form-item">
+        <label for="speaker">Speaker</label>
+        <select id="speaker"></select>
+      </div>
+
+      <div class="form-item">
+        <label for="message">Message</label>
+        <textarea id="message" readonly></textarea>
+      </div>
+
+      <div class="form-item">
+        <div class="btn-group">
+          <button type="button" id="resetButton" class="btn">Reset</button>
+          <button type="button" id="startButton" class="btn btn-primary">Start</button>
         </div>
+      </div>
+    </form>
 
-        <div class="form-item">
-          <label for="openApiKey" class="required">Open API Key</label>
-          <input type="text" id="openApiKey" required>
-        </div>
-
-        <div class="form-item">
-          <label for="prompt" class="required">Prompt</label>
-          <textarea id="prompt" required></textarea>
-        </div>
-
-        <div class="form-item">
-          <label for="speaker">Speaker</label>
-          <select id="speaker"></select>
-        </div>
-
-        <!-- <div class="form-item">
-          <label for="stt">Speech to Text</label>
-          <textarea id="stt" readonly></textarea>
-        </div>
-
-        <div class="form-item">
-          <label for="tts">Text to Speech</label>
-          <textarea id="tts" readonly></textarea>
-        </div> -->
-
-        <div class="form-item">
-          <label for="message">Message</label>
-          <textarea id="message" readonly></textarea>
-        </div>
-
-        <div class="form-item">
-          <div class="btn-group">
-            <button type="button" id="resetButton" class="btn">Reset</button>
-            <button type="button" id="startButton" class="btn btn-primary">Start</button>
-          </div>
-        </div>
-      </form>
-
-      <audio id="audioElement" autoplay></audio>
-    </div>
+    <audio id="audioElement" autoplay></audio>
   </div>
+</div>
 
-  <script src="./app.js"></script>
+<!-- Application Configuration -->
+<script type="module">
+  import {STTManager} from './stt.js';
+  import {TTSManager} from './tts.js';
+
+  // API Configuration
+  window.API_CONFIG = {
+    // STT API
+    stt: {
+      baseUrl: "https://api.blaze.vn/v1",
+      config: {
+        lazyProcess: false
+      }
+    },
+    // TTS API
+    tts: {
+      baseUrl: "https://api.blaze.vn/v1",
+      config: {
+        normalization: 'basic',
+        language: 'vi',
+        audioFormat: 'mp3',
+        audioQuality: 32,
+        audioSpeed: '1'
+      }
+    },
+    // LLM API (OpenAI)
+    llm: {
+      provider: 'openai',
+      openai: {
+        url: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini"
+      },
+    }
+  };
+
+  // Application Configuration
+  window.APP_CONFIG = {
+    // Voice Configuration
+    voice: {
+      defaultSpeaker: "HN-Nu-2-BL",
+    },
+    // LLM Configuration
+    llm: {
+      defaultPrompt: `Mô tả:
+
+Bạn là Nguyễn Cao Kỳ Duyên, một gương mặt nổi bật trong lĩnh vực người mẫu và truyền hình tại Việt Nam.
+Bạn đã đăng quang Hoa hậu Việt Nam 2014 và Miss Universe Vietnam 2024.
+Sau cuộc thi Miss Universe 2024 tại Mexico, nơi bạn lọt vào top 30, bạn đã tập trung vào các dự án cá nhân và việc học tại Đại học Ngoại thương.
+
+Hướng dẫn trả lời:
+
+Trả lời ngắn gọn (2-3 câu).
+Chân thành, cởi mở và sẵn sàng chia sẻ.
+Đón nhận và hỏi thêm về đối phương nếu thấy cuộc trò chuyện thú vị.
+
+Xưng hô:
+
+Gọi là "em" nếu đối phương xưng là anh hoặc chị.
+Gọi là "chị" nếu đối phương xưng là em.
+Gọi là "cháu" nếu đối phương xưng là cô, bác, chú, cháu, ông hoặc bà.
+Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi hơn.`
+    }
+  };
+
+  // DOM Elements
+  const authTokenInput = document.getElementById('authToken');
+  const openApiKeyInput = document.getElementById('openApiKey');
+  const promptTextarea = document.getElementById('prompt');
+  const messageTextarea = document.getElementById('message');
+  const startButton = document.getElementById('startButton');
+  const resetButton = document.getElementById('resetButton');
+  const audioElement = document.getElementById('audioElement');
+  const speakerSelect = document.getElementById('speaker');
+
+  const MicrophoneStatusEnum = {
+    loading: 'loading',
+    idle: 'idle',
+    recording: 'recording',
+    error: 'error',
+    talking: 'talking',
+  };
+
+  const disabledMicrophoneStatuses = [
+    MicrophoneStatusEnum.loading,
+    MicrophoneStatusEnum.talking,
+    MicrophoneStatusEnum.error,
+  ];
+
+  // State Management
+  let isStartRecording = false;
+  let microphoneStatus = MicrophoneStatusEnum.idle;
+  let authToken = '';
+  let openApiKey = '';
+  let prompt = '';
+  let tts = '';
+  let ttsTmp = '';
+  let arrAudioChunks = [];
+  let currentSpeaker = '';
+  let isProcessingTts = false;
+  let vadRef = null;
+
+  // Managers
+  let sttManager = null;
+  let ttsManager = null;
+
+  const initializeVAD = async () => {
+    try {
+      vadRef = await vad.MicVAD.new({
+        onSpeechStart: () => {
+          console.log('Speech start detected');
+        },
+        onSpeechEnd: (audio) => {
+          console.log('Speech end detected');
+          if (disabledMicrophoneStatuses.includes(microphoneStatus)) return;
+
+          setMicrophoneStatus(MicrophoneStatusEnum.loading);
+          const wavBuffer = vad.utils.encodeWAV(audio);
+          sttManager.handleStt(wavBuffer);
+        },
+      });
+    } catch (error) {
+      console.error('VAD initialization error:', error);
+    }
+  };
+
+  const startRecording = async () => {
+    if (vadRef) {
+      await vadRef.start();
+    } else {
+      await initializeVAD();
+      await vadRef.start();
+    }
+  };
+
+  const stopRecording = async () => {
+    if (vadRef) {
+      await vadRef.destroy();
+      vadRef = null;
+    }
+  };
+
+  // Helper Functions
+  const setMicrophoneStatus = (status) => {
+    microphoneStatus = status;
+    updateUI();
+  };
+
+  const checkRecordingConditions = () => {
+    return disabledMicrophoneStatuses.includes(microphoneStatus) ||
+        !authToken ||
+        !currentSpeaker ||
+        !openApiKey ||
+        !prompt;
+  };
+
+  const updateUI = () => {
+    const isLoading = microphoneStatus === MicrophoneStatusEnum.loading;
+    const isRecordingDisabled = checkRecordingConditions()
+
+    // Disable input fields when recording
+    authTokenInput.disabled = isStartRecording;
+    openApiKeyInput.disabled = isStartRecording;
+    promptTextarea.disabled = isStartRecording;
+    speakerSelect.disabled = isStartRecording;
+
+    startButton.disabled = isRecordingDisabled;
+    startButton.textContent = isLoading ? 'Loading' : isStartRecording ? "Stop" : "Start";
+    startButton.className = `btn ${isStartRecording ? "btn-danger" : "btn-primary"}`;
+    if (isLoading) {
+      startButton.classList.add('btn-loading');
+    } else {
+      startButton.classList.remove('btn-loading');
+    }
+  };
+
+  // Handle response stream
+  const handleStreamText = (token) => {
+    if (token === "[DONE]") {
+      messageTextarea.scrollTop = messageTextarea.scrollHeight;
+      tts = ""
+      ttsTmp = ""
+    } else {
+      ttsTmp += token;
+      const lastChar = ttsTmp.slice(-1);
+      const punctuation = ['.', ',', '!', '?', ';', ':'];
+      if (lastChar === ' ' || punctuation.includes(lastChar)) {
+        if (!tts) {
+          tts = '> Assistant: ' + ttsTmp;
+          messageTextarea.value += '> Assistant: ' + ttsTmp;
+        } else {
+          tts += ttsTmp;
+          messageTextarea.value += ttsTmp;
+        }
+        messageTextarea.scrollTop = messageTextarea.scrollHeight;
+        ttsManager.sendText(ttsTmp);
+        ttsTmp = ""
+      }
+    }
+  }
+
+  // Stream open ai
+  const streamOpenAI = async (text, onWord) => {
+    const messages = [
+      {"role": "system", "content": prompt},
+      {"role": "user", "content": text},
+    ]
+    const response = await fetch(window.API_CONFIG.llm.openai.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openApiKey}`,
+      },
+      body: JSON.stringify({
+        model: window.API_CONFIG.llm.openai.model,
+        messages: messages,
+        stream: true,
+      }),
+    });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let buffer = "";
+    let fullText = "";
+    const wordQueue = [];
+    let isDone = false;
+
+    (async function processQueue() {
+      while (!isDone || wordQueue.length > 0) {
+        if (wordQueue.length > 0) {
+          const word = wordQueue.shift();
+          await onWord(word);
+          await new Promise(res => setTimeout(res, 100));
+        } else {
+          await new Promise(res => setTimeout(res, 20));
+        }
+      }
+
+      if (fullText.trim() !== "") {
+        const remainingWords = fullText.match(/\S+\s*/g);
+        if (remainingWords) {
+          for (const word of remainingWords) {
+            await onWord(word);
+            await new Promise(res => setTimeout(res, 100));
+          }
+        }
+      }
+      await onWord("[DONE]");
+    })();
+
+    while (true) {
+      const {value, done} = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value, {stream: true});
+      buffer += chunk;
+
+      const lines = buffer.split("\n").filter(line => line.trim() !== "");
+
+      for (const line of lines) {
+        if (line.startsWith("data:")) {
+          const data = line.replace("data: ", "");
+
+          if (data === "[DONE]") {
+            isDone = true;
+            return;
+          }
+
+          try {
+            const parsed = JSON.parse(data);
+            const delta = parsed.choices?.[0]?.delta?.content;
+            if (delta) {
+              fullText += delta;
+
+              const words = fullText.match(/\S+\s*/g);
+              if (words && words.length > 1) {
+                for (let i = 0; i < words.length - 1; i++) {
+                  wordQueue.push(words[i]);
+                }
+                fullText = words[words.length - 1];
+              }
+            }
+          } catch (e) {
+            console.error("Parse error:", e);
+          }
+        }
+      }
+
+      buffer = "";
+    }
+  }
+
+  // Audio Handler
+  const processNextAudioElement = () => {
+    if (arrAudioChunks.length > 0) {
+      isProcessingTts = true;
+      const nextElement = arrAudioChunks.shift();
+
+      audioElement.src = nextElement;
+      setMicrophoneStatus(MicrophoneStatusEnum.talking);
+
+      audioElement.addEventListener('loadedmetadata', () => {
+        audioElement.play()
+            .then(() => {
+              setTimeout(() => {
+                if (isStartRecording) {
+                  setMicrophoneStatus(MicrophoneStatusEnum.recording);
+                } else {
+                  setMicrophoneStatus(MicrophoneStatusEnum.idle);
+                }
+
+                if (arrAudioChunks.length > 0) {
+                  processNextAudioElement();
+                } else {
+                  isProcessingTts = false;
+                }
+              }, (audioElement.duration || 1) * 1000);
+            })
+            .catch(() => {
+              if (isStartRecording) {
+                setMicrophoneStatus(MicrophoneStatusEnum.recording);
+              } else {
+                setMicrophoneStatus(MicrophoneStatusEnum.idle);
+              }
+            });
+      }, {once: true});
+    }
+  };
+
+  // State Management Functions
+  const handleClearState = async () => {
+    if (sttManager) {
+      await stopRecording();
+    }
+    if (ttsManager) {
+      ttsManager.disconnect();
+    }
+    isStartRecording = false;
+    setMicrophoneStatus(MicrophoneStatusEnum.idle);
+  };
+
+  const handleReset = async () => {
+    messageTextarea.value = '';
+    handleClearState();
+  };
+
+  // Initialize managers
+  const initializeManagers = () => {
+    sttManager = new STTManager({
+      baseUrl: window.API_CONFIG.stt.baseUrl,
+      authToken,
+      config: window.API_CONFIG.stt.config,
+      onTextReceived: (text) => {
+        if (messageTextarea.value) messageTextarea.value += '\n\n'
+        messageTextarea.value += `> User: ${text}\n`;
+        messageTextarea.scrollTop = messageTextarea.scrollHeight;
+        streamOpenAI(text, handleStreamText);
+      },
+    });
+
+    ttsManager = new TTSManager({
+      baseUrl: window.API_CONFIG.tts.baseUrl,
+      authToken,
+      speakerId: currentSpeaker,
+      config: window.API_CONFIG.tts.config,
+      onAudioReceived: (audioUrl) => {
+        arrAudioChunks.push(audioUrl);
+        if (!isProcessingTts) {
+          processNextAudioElement();
+        }
+      },
+    });
+  };
+
+  // Event Handlers
+  const handleStart = async () => {
+    if (!authToken || !currentSpeaker || !openApiKey || !prompt) {
+      return;
+    }
+
+
+    if (!sttManager || !ttsManager) {
+      initializeManagers();
+    }
+
+    isStartRecording = !isStartRecording;
+
+    if (!isStartRecording) {
+      setMicrophoneStatus(MicrophoneStatusEnum.idle);
+      await stopRecording();
+      handleClearState();
+    } else {
+      setMicrophoneStatus(MicrophoneStatusEnum.loading);
+      await startRecording();
+      ttsManager.connect();
+      setMicrophoneStatus(MicrophoneStatusEnum.recording);
+    }
+
+    updateUI();
+  };
+
+  // Event Listeners
+  authTokenInput.addEventListener('input', (e) => {
+    authToken = e.target.value.trim();
+    if (sttManager) sttManager.setAuthToken(authToken);
+    if (ttsManager) ttsManager.setAuthToken(authToken);
+    updateUI();
+  });
+
+  openApiKeyInput.addEventListener('input', (e) => {
+    openApiKey = e.target.value.trim();
+    updateUI();
+  });
+
+  promptTextarea.addEventListener('input', (e) => {
+    prompt = e.target.value.trim();
+    updateUI();
+  });
+
+  speakerSelect.addEventListener('change', (e) => {
+    currentSpeaker = e.target.value;
+    if (ttsManager) ttsManager.setSpeakerId(currentSpeaker);
+  });
+
+  startButton.addEventListener('click', handleStart);
+  resetButton.addEventListener('click', handleReset);
+
+  // Initialize APP
+  promptTextarea.value = window.APP_CONFIG.llm.defaultPrompt;
+  prompt = window.APP_CONFIG.llm.defaultPrompt;
+
+  // Fetch speakers and initialize UI
+  const initializeApp = async () => {
+    if (!ttsManager) {
+      ttsManager = new TTSManager({
+        baseUrl: window.API_CONFIG.tts.baseUrl,
+        config: window.API_CONFIG.tts.config
+      });
+    }
+    const speakers = await ttsManager.fetchSpeakers();
+
+    // Clear existing options
+    speakerSelect.innerHTML = '';
+
+    // Add new options
+    speakers.forEach(speaker => {
+      const option = document.createElement('option');
+      option.value = speaker.id;
+      option.textContent = speaker.name;
+      speakerSelect.appendChild(option);
+    });
+
+    // Set default value if available
+    if (speakers.length > 0) {
+      const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
+      const item = speakers.find(e => e.id === defaultSpeaker);
+      if (item) {
+        currentSpeaker = item.id;
+        speakerSelect.value = currentSpeaker;
+      } else {
+        currentSpeaker = speakers[0].id;
+        speakerSelect.value = currentSpeaker;
+      }
+    }
+
+    updateUI();
+  };
+
+  // Cleanup on page unload
+  window.addEventListener('beforeunload', () => {
+    handleClearState();
+  });
+
+  initializeApp();
+</script>
 </body>
 </html>
