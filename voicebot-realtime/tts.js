@@ -40,6 +40,7 @@ class TTSManager {
       const connectionTimeout = setTimeout(() => {
         if (websocket.readyState !== WebSocket.OPEN) {
           websocket.close();
+          alert('TTS Connection timeout after 5 seconds');
         }
       }, 5000);
 
@@ -75,6 +76,7 @@ class TTSManager {
       };
     } catch (error) {
       console.error('Error connecting to TTS:', error);
+      alert(`Error connecting to TTS: ${error.message}`);
     }
   }
 

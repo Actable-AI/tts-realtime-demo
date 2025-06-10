@@ -189,22 +189,34 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       });
     } catch (error) {
       console.error('VAD initialization error:', error);
+      alert('Failed to initialize voice activity detection. Please refresh the page and try again.');
     }
   };
 
   const startRecording = async () => {
-    if (vadRef) {
-      await vadRef.start();
-    } else {
-      await initializeVAD();
-      await vadRef.start();
+    try {
+      if (vadRef) {
+        await vadRef.start();
+      } else {
+        await initializeVAD();
+        await vadRef.start();
+      }
+    } catch (error) {
+      console.error('Error starting recording:', error);
+      alert('Failed to start recording. Please try again.');
+      setMicrophoneStatus(MicrophoneStatusEnum.error);
     }
   };
 
   const stopRecording = async () => {
-    if (vadRef) {
-      await vadRef.destroy();
-      vadRef = null;
+    try {
+      if (vadRef) {
+        await vadRef.destroy();
+        vadRef = null;
+      }
+    } catch (error) {
+      console.error('Error stopping recording:', error);
+      alert('Failed to stop recording properly. Please refresh the page.');
     }
   };
 
@@ -269,92 +281,113 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
   // Stream open ai
   const streamOpenAI = async (text, onWord) => {
-    const messages = [
-      {"role": "system", "content": prompt},
-      {"role": "user", "content": text},
-    ]
-    const response = await fetch(window.API_CONFIG.llm.openai.url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${openApiKey}`,
-      },
-      body: JSON.stringify({
-        model: window.API_CONFIG.llm.openai.model,
-        messages: messages,
-        stream: true,
-      }),
-    });
+    try {
+      const messages = [
+        {"role": "system", "content": prompt},
+        {"role": "user", "content": text},
+      ]
+      const response = await fetch(window.API_CONFIG.llm.openai.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openApiKey}`,
+        },
+        body: JSON.stringify({
+          model: window.API_CONFIG.llm.openai.model,
+          messages: messages,
+          stream: true,
+        }),
+      });
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-    let fullText = "";
-    const wordQueue = [];
-    let isDone = false;
-
-    (async function processQueue() {
-      while (!isDone || wordQueue.length > 0) {
-        if (wordQueue.length > 0) {
-          const word = wordQueue.shift();
-          await onWord(word);
-          await new Promise(res => setTimeout(res, 100));
-        } else {
-          await new Promise(res => setTimeout(res, 20));
-        }
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
 
-      if (fullText.trim() !== "") {
-        const remainingWords = fullText.match(/\S+\s*/g);
-        if (remainingWords) {
-          for (const word of remainingWords) {
-            await onWord(word);
-            await new Promise(res => setTimeout(res, 100));
-          }
-        }
-      }
-      await onWord("[DONE]");
-    })();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let fullText = "";
+      const wordQueue = [];
+      let isDone = false;
 
-    while (true) {
-      const {value, done} = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value, {stream: true});
-      buffer += chunk;
-
-      const lines = buffer.split("\n").filter(line => line.trim() !== "");
-
-      for (const line of lines) {
-        if (line.startsWith("data:")) {
-          const data = line.replace("data: ", "");
-
-          if (data === "[DONE]") {
-            isDone = true;
-            return;
+      (async function processQueue() {
+        try {
+          while (!isDone || wordQueue.length > 0) {
+            if (wordQueue.length > 0) {
+              const word = wordQueue.shift();
+              await onWord(word);
+              await new Promise(res => setTimeout(res, 100));
+            } else {
+              await new Promise(res => setTimeout(res, 20));
+            }
           }
 
-          try {
-            const parsed = JSON.parse(data);
-            const delta = parsed.choices?.[0]?.delta?.content;
-            if (delta) {
-              fullText += delta;
-
-              const words = fullText.match(/\S+\s*/g);
-              if (words && words.length > 1) {
-                for (let i = 0; i < words.length - 1; i++) {
-                  wordQueue.push(words[i]);
-                }
-                fullText = words[words.length - 1];
+          if (fullText.trim() !== "") {
+            const remainingWords = fullText.match(/\S+\s*/g);
+            if (remainingWords) {
+              for (const word of remainingWords) {
+                await onWord(word);
+                await new Promise(res => setTimeout(res, 100));
               }
             }
-          } catch (e) {
-            console.error("Parse error:", e);
+          }
+          await onWord("[DONE]");
+        } catch (error) {
+          console.error('Error processing OpenAI response:', error);
+          alert('Error processing AI response. Please try again.');
+        }
+      })();
+
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, {stream: true});
+        buffer += chunk;
+
+        const lines = buffer.split("\n").filter(line => line.trim() !== "");
+
+        for (const line of lines) {
+          if (line.startsWith("data:")) {
+            const data = line.replace("data: ", "");
+
+            if (data === "[DONE]") {
+              isDone = true;
+              return;
+            }
+
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                fullText += delta;
+
+                const words = fullText.match(/\S+\s*/g);
+                if (words && words.length > 1) {
+                  for (let i = 0; i < words.length - 1; i++) {
+                    wordQueue.push(words[i]);
+                  }
+                  fullText = words[words.length - 1];
+                }
+              }
+            } catch (e) {
+              console.error("Parse error:", e);
+              alert('Error parsing AI response. Please try again.');
+            }
           }
         }
-      }
 
-      buffer = "";
+        buffer = "";
+      }
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      alert(`Error communicating with AI: ${error.message}`);
+      if (isStartRecording) {
+        setMicrophoneStatus(MicrophoneStatusEnum.recording);
+      } else {
+        setMicrophoneStatus(MicrophoneStatusEnum.idle);
+      }
     }
   }
 
@@ -369,28 +402,30 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
       audioElement.addEventListener('loadedmetadata', () => {
         audioElement.play()
-            .then(() => {
-              setTimeout(() => {
-                if (isStartRecording) {
-                  setMicrophoneStatus(MicrophoneStatusEnum.recording);
-                } else {
-                  setMicrophoneStatus(MicrophoneStatusEnum.idle);
-                }
-
-                if (arrAudioChunks.length > 0) {
-                  processNextAudioElement();
-                } else {
-                  isProcessingTts = false;
-                }
-              }, (audioElement.duration || 1) * 1000);
-            })
-            .catch(() => {
+          .then(() => {
+            setTimeout(() => {
               if (isStartRecording) {
                 setMicrophoneStatus(MicrophoneStatusEnum.recording);
               } else {
                 setMicrophoneStatus(MicrophoneStatusEnum.idle);
               }
-            });
+
+              if (arrAudioChunks.length > 0) {
+                processNextAudioElement();
+              } else {
+                isProcessingTts = false;
+              }
+            }, (audioElement.duration || 1) * 1000);
+          })
+          .catch((error) => {
+            console.error('Error playing audio:', error);
+            alert('Error playing audio response. Please try again.');
+            if (isStartRecording) {
+              setMicrophoneStatus(MicrophoneStatusEnum.recording);
+            } else {
+              setMicrophoneStatus(MicrophoneStatusEnum.idle);
+            }
+          });
       }, {once: true});
     }
   };
@@ -414,30 +449,35 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
   // Initialize managers
   const initializeManagers = () => {
-    sttManager = new STTManager({
-      baseUrl: window.API_CONFIG.stt.baseUrl,
-      authToken,
-      config: window.API_CONFIG.stt.config,
-      onTextReceived: (text) => {
-        if (messageTextarea.value) messageTextarea.value += '\n\n'
-        messageTextarea.value += `> User: ${text}\n`;
-        messageTextarea.scrollTop = messageTextarea.scrollHeight;
-        streamOpenAI(text, handleStreamText);
-      },
-    });
+    try {
+      sttManager = new STTManager({
+        baseUrl: window.API_CONFIG.stt.baseUrl,
+        authToken,
+        config: window.API_CONFIG.stt.config,
+        onTextReceived: (text) => {
+          if (messageTextarea.value) messageTextarea.value += '\n\n'
+          messageTextarea.value += `> User: ${text}\n`;
+          messageTextarea.scrollTop = messageTextarea.scrollHeight;
+          streamOpenAI(text, handleStreamText);
+        },
+      });
 
-    ttsManager = new TTSManager({
-      baseUrl: window.API_CONFIG.tts.baseUrl,
-      authToken,
-      speakerId: currentSpeaker,
-      config: window.API_CONFIG.tts.config,
-      onAudioReceived: (audioUrl) => {
-        arrAudioChunks.push(audioUrl);
-        if (!isProcessingTts) {
-          processNextAudioElement();
-        }
-      },
-    });
+      ttsManager = new TTSManager({
+        baseUrl: window.API_CONFIG.tts.baseUrl,
+        authToken,
+        speakerId: currentSpeaker,
+        config: window.API_CONFIG.tts.config,
+        onAudioReceived: (audioUrl) => {
+          arrAudioChunks.push(audioUrl);
+          if (!isProcessingTts) {
+            processNextAudioElement();
+          }
+        },
+      });
+    } catch (error) {
+      console.error('Error initializing managers:', error);
+      alert('Failed to initialize voice services. Please refresh the page and try again.');
+    }
   };
 
   // Event Handlers
@@ -499,39 +539,49 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
   // Fetch speakers and initialize UI
   const initializeApp = async () => {
-    if (!ttsManager) {
-      ttsManager = new TTSManager({
-        baseUrl: window.API_CONFIG.tts.baseUrl,
-        config: window.API_CONFIG.tts.config
-      });
-    }
-    const speakers = await ttsManager.fetchSpeakers();
-
-    // Clear existing options
-    speakerSelect.innerHTML = '';
-
-    // Add new options
-    speakers.forEach(speaker => {
-      const option = document.createElement('option');
-      option.value = speaker.id;
-      option.textContent = speaker.name;
-      speakerSelect.appendChild(option);
-    });
-
-    // Set default value if available
-    if (speakers.length > 0) {
-      const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
-      const item = speakers.find(e => e.id === defaultSpeaker);
-      if (item) {
-        currentSpeaker = item.id;
-        speakerSelect.value = currentSpeaker;
-      } else {
-        currentSpeaker = speakers[0].id;
-        speakerSelect.value = currentSpeaker;
+    try {
+      if (!ttsManager) {
+        ttsManager = new TTSManager({
+          baseUrl: window.API_CONFIG.tts.baseUrl,
+          config: window.API_CONFIG.tts.config
+        });
       }
-    }
+      const speakers = await ttsManager.fetchSpeakers();
 
-    updateUI();
+      if (speakers.length === 0) {
+        alert('No speakers available. Please check your connection and try again.');
+        return;
+      }
+
+      // Clear existing options
+      speakerSelect.innerHTML = '';
+
+      // Add new options
+      speakers.forEach(speaker => {
+        const option = document.createElement('option');
+        option.value = speaker.id;
+        option.textContent = speaker.name;
+        speakerSelect.appendChild(option);
+      });
+
+      // Set default value if available
+      if (speakers.length > 0) {
+        const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
+        const item = speakers.find(e => e.id === defaultSpeaker);
+        if (item) {
+          currentSpeaker = item.id;
+          speakerSelect.value = currentSpeaker;
+        } else {
+          currentSpeaker = speakers[0].id;
+          speakerSelect.value = currentSpeaker;
+        }
+      }
+
+      updateUI();
+    } catch (error) {
+      console.error('Error initializing app:', error);
+      alert('Failed to initialize application. Please refresh the page and try again.');
+    }
   };
 
   // Cleanup on page unload

@@ -34,6 +34,7 @@ class STTManager {
       this.onTextReceived(text);
     } catch (error) {
       console.error('STT Error:', error);
+      alert(`STT Error: ${error.message}`);
     }
   }
 
