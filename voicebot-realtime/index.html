@@ -71,6 +71,32 @@
 <script type="module">
   import {STTManager} from './stt.js';
   import {TTSManager} from './tts.js';
+  import {
+    authTokenInput,
+    speakerSelect,
+    messageTextarea,
+    startButton,
+    resetButton,
+    audioElement,
+    MicrophoneStatusEnum,
+    setMicrophoneStatus,
+    updateUI,
+    initializeEventListeners,
+    initializeApp,
+    addAudioChunk,
+    getNextAudioChunk,
+    hasAudioChunks,
+    setProcessingTTS,
+    isProcessingTTS,
+    isStartRecording,
+    authToken,
+    openApiKey,
+    prompt,
+    currentSpeaker,
+    setCurrentSpeaker,
+    setAuthToken,
+    setIsStartRecording
+  } from './app.js';
 
   // API Configuration
   window.API_CONFIG = {
@@ -131,79 +157,10 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     }
   };
 
-  // DOM Elements
-  const authTokenInput = document.getElementById('authToken');
-  const openApiKeyInput = document.getElementById('openApiKey');
-  const promptTextarea = document.getElementById('prompt');
-  const speakerSelect = document.getElementById('speaker');
-  const messageTextarea = document.getElementById('message');
-  const startButton = document.getElementById('startButton');
-  const resetButton = document.getElementById('resetButton');
-  const audioElement = document.getElementById('audioElement');
-
-  const MicrophoneStatusEnum = {
-    loading: 'loading',
-    idle: 'idle',
-    recording: 'recording',
-    error: 'error',
-    talking: 'talking',
-  };
-
-  const disabledMicrophoneStatuses = [
-    MicrophoneStatusEnum.loading,
-    MicrophoneStatusEnum.talking,
-    MicrophoneStatusEnum.error,
-  ];
-
-  // State Management
-  let isStartRecording = false;
-  let microphoneStatus = MicrophoneStatusEnum.idle;
-  let authToken = '';
-  let openApiKey = '';
-  let prompt = '';
-  let currentSpeaker = '';
-  let tts = '';
-  let arrAudioChunks = [];
-  let isProcessingTts = false;
-
   // Managers
   let sttManager = null;
   let ttsManager = null;
-
-  // Helper Functions
-  const setMicrophoneStatus = (status) => {
-    microphoneStatus = status;
-    updateUI();
-  };
-
-  const checkRecordingConditions = () => {
-    return disabledMicrophoneStatuses.includes(microphoneStatus) ||
-        !authToken ||
-        !currentSpeaker ||
-        !openApiKey ||
-        !prompt;
-  };
-
-  // Helper Functions
-  const updateUI = () => {
-    const isLoading = microphoneStatus === MicrophoneStatusEnum.loading;
-    const isRecordingDisabled = checkRecordingConditions();
-
-    // Disable input fields when recording
-    authTokenInput.disabled = isStartRecording;
-    openApiKeyInput.disabled = isStartRecording;
-    promptTextarea.disabled = isStartRecording;
-    speakerSelect.disabled = isStartRecording;
-
-    startButton.disabled = isRecordingDisabled;
-    startButton.textContent = isLoading ? 'Loading' : isStartRecording ? "Stop" : "Start";
-    startButton.className = `btn ${isStartRecording ? "btn-danger" : "btn-primary"}`;
-    if (isLoading) {
-      startButton.classList.add('btn-loading');
-    } else {
-      startButton.classList.remove('btn-loading');
-    }
-  };
+  let tts = '';
 
   // Stream open ai
   const streamOpenAI = async (text) => {
@@ -250,7 +207,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
             if (data === "[DONE]") {
               messageTextarea.scrollTop = messageTextarea.scrollHeight;
-              tts = ""
+              tts = "";
               return;
             }
 
@@ -285,9 +242,9 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
   // Audio Handler
   const processNextAudioElement = () => {
-    if (arrAudioChunks.length > 0) {
-      isProcessingTts = true;
-      const nextElement = arrAudioChunks.shift();
+    if (hasAudioChunks()) {
+      setProcessingTTS(true);
+      const nextElement = getNextAudioChunk();
 
       audioElement.src = nextElement;
       setMicrophoneStatus(MicrophoneStatusEnum.talking);
@@ -299,10 +256,10 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
               setTimeout(() => {
                 setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
 
-                if (arrAudioChunks.length > 0) {
+                if (hasAudioChunks()) {
                   processNextAudioElement();
                 } else {
-                  isProcessingTts = false;
+                  setProcessingTTS(false);
                   sttManager.start()
                 }
               }, (audioElement.duration || 1) * 1000);
@@ -322,7 +279,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     if (ttsManager) {
       ttsManager.disconnect();
     }
-    isStartRecording = false;
+    setIsStartRecording(false);
     setMicrophoneStatus(MicrophoneStatusEnum.idle);
   };
 
@@ -352,8 +309,8 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         speakerId: currentSpeaker,
         config: window.API_CONFIG.tts.config,
         onAudioReceived: (audioUrl) => {
-          arrAudioChunks.push(audioUrl);
-          if (!isProcessingTts) {
+          addAudioChunk(audioUrl);
+          if (!isProcessingTTS()) {
             processNextAudioElement();
           }
         },
@@ -374,7 +331,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       initializeManagers();
     }
 
-    isStartRecording = !isStartRecording;
+    setIsStartRecording(!isStartRecording);
 
     if (!isStartRecording) {
       await sttManager.stop();
@@ -387,38 +344,11 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     }
   };
 
-  // Event Listeners
-  authTokenInput.addEventListener('input', (e) => {
-    authToken = e.target.value.trim();
-    if (sttManager) sttManager.setAuthToken(authToken);
-    if (ttsManager) ttsManager.setAuthToken(authToken);
-    updateUI();
-  });
-
-  openApiKeyInput.addEventListener('input', (e) => {
-    openApiKey = e.target.value.trim();
-    updateUI();
-  });
-
-  promptTextarea.addEventListener('input', (e) => {
-    prompt = e.target.value.trim();
-    updateUI();
-  });
-
-  speakerSelect.addEventListener('change', (e) => {
-    currentSpeaker = e.target.value;
-    if (ttsManager) ttsManager.setSpeakerId(currentSpeaker);
-  });
-
-  startButton.addEventListener('click', handleStart);
-  resetButton.addEventListener('click', handleReset);
-
   // Initialize APP
-  promptTextarea.value = window.APP_CONFIG.llm.defaultPrompt;
-  prompt = window.APP_CONFIG.llm.defaultPrompt;
+  initializeApp();
 
   // Fetch speakers and initialize UI
-  const initializeApp = async () => {
+  const initializeTTS = async () => {
     try {
       if (!ttsManager) {
         ttsManager = new TTSManager({
@@ -449,10 +379,10 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
         const item = speakers.find(e => e.id === defaultSpeaker);
         if (item) {
-          currentSpeaker = item.id;
+          setCurrentSpeaker(item.id);
           speakerSelect.value = currentSpeaker;
         } else {
-          currentSpeaker = speakers[0].id;
+          setCurrentSpeaker(speakers[0].id);
           speakerSelect.value = currentSpeaker;
         }
 
@@ -466,7 +396,20 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     }
   };
 
-  initializeApp();
+  // Initialize event listeners
+  initializeEventListeners();
+  
+  // Add manager-related event listeners
+  authTokenInput.addEventListener('input', (e) => {
+    setAuthToken(e.target.value.trim());
+    if (sttManager) sttManager.setAuthToken(authToken);
+    if (ttsManager) ttsManager.setAuthToken(authToken);
+  });
+
+  startButton.addEventListener('click', handleStart);
+  resetButton.addEventListener('click', handleReset);
+
+  initializeTTS();
 </script>
 </body>
 </html>
