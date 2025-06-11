@@ -4,6 +4,7 @@ class STTManager {
     this.authToken = options.authToken || '';
     this.onTextReceived = options.onTextReceived || (() => {
     });
+    this.vadRef = null;
     this.config = options.config || {};
   }
 
@@ -17,7 +18,7 @@ class STTManager {
       const formData = new FormData();
       formData.append('audio_file', audioBlob, 'audio.wav');
 
-      const response = await fetch(`${this.baseUrl}/stt/execute?lazy_process=false`, {
+      const response = await fetch(`${this.baseUrl}/stt/execute?lazy_process=${this.config.lazyProcess || false}`, {
         method: 'POST',
         headers: {
           ...headers,
@@ -34,7 +35,39 @@ class STTManager {
       this.onTextReceived(text);
     } catch (error) {
       console.error('STT Error:', error);
-      alert(`STT Error: ${error.message}`);
+    }
+  }
+
+  async initializeVAD() {
+    try {
+      this.vadRef = await vad.MicVAD.new({
+        onSpeechStart: () => {
+          console.log('Speech start detected');
+        },
+        onSpeechEnd: (audio) => {
+          console.log('Speech end detected');
+          const wavBuffer = vad.utils.encodeWAV(audio);
+          this.handleStt(wavBuffer);
+        },
+      });
+    } catch (error) {
+      console.error('VAD initialization error:', error);
+    }
+  }
+
+  async start() {
+    if (this.vadRef) {
+      await this.vadRef.start();
+    } else {
+      await this.initializeVAD();
+      await this.vadRef.start();
+    }
+  }
+
+  async stop() {
+    if (this.vadRef) {
+      await this.vadRef.destroy();
+      this.vadRef = null;
     }
   }
 
