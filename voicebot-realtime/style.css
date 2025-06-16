@@ -253,3 +253,8 @@ h2 {
       transform: rotate(360deg);
   }
 }
+
+.link-repo {
+  text-align: center;
+  font-style: italic;
+}
