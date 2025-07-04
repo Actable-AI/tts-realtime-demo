@@ -38,13 +38,23 @@ export const setMicrophoneStatus = (status) => {
   updateUI();
 };
 
-export const setCurrentSpeaker = (speakerId) => {
-  currentSpeaker = speakerId;
+export const setAuthToken = (token) => {
+  authToken = token;
   updateUI();
 };
 
-export const setAuthToken = (token) => {
-  authToken = token;
+export const setOpenApiKey = (apiKey) => {
+  openApiKey = apiKey;
+  updateUI();
+};
+
+export const setPrompt = (prompt) => {
+  openApiKey = prompt;
+  updateUI();
+};
+
+export const setCurrentSpeaker = (speakerId) => {
+  currentSpeaker = speakerId;
   updateUI();
 };
 

@@ -77,6 +77,8 @@
   import {TTSManager} from './tts.js';
   import {
     authTokenInput,
+    openApiKeyInput,
+    promptTextarea,
     speakerSelect,
     messageTextarea,
     startButton,
@@ -97,8 +99,10 @@
     openApiKey,
     prompt,
     currentSpeaker,
-    setCurrentSpeaker,
     setAuthToken,
+    setOpenApiKey,
+    setPrompt,
+    setCurrentSpeaker,
     setIsStartRecording
   } from './app.js';
 
@@ -165,14 +169,20 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   let sttManager = null;
   let ttsManager = null;
   let tts = '';
-
+  
+  // Chat History
+  let chatHistory = [];
+  
   // Stream open ai
   const streamOpenAI = async (text) => {
     setMicrophoneStatus(MicrophoneStatusEnum.loading)
     try {
+      // Add user message to history
+      chatHistory.push({"role": "user", "content": text});
+      
       const messages = [
         {"role": "system", "content": prompt},
-        {"role": "user", "content": text},
+        ...chatHistory
       ]
       const response = await fetch(window.API_CONFIG.llm.openai.url, {
         method: "POST",
@@ -210,6 +220,10 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             const data = line.replace("data: ", "");
 
             if (data === "[DONE]") {
+              // Add assistant message to history
+              if (tts) {
+                chatHistory.push({"role": "assistant", "content": tts.replace('> Assistant: ', '')});
+              }
               messageTextarea.scrollTop = messageTextarea.scrollHeight;
               tts = "";
               return;
@@ -289,6 +303,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
   const handleReset = async () => {
     messageTextarea.value = '';
+    chatHistory = [];
     handleClearState();
   };
 
@@ -408,6 +423,21 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     setAuthToken(e.target.value.trim());
     if (sttManager) sttManager.setAuthToken(authToken);
     if (ttsManager) ttsManager.setAuthToken(authToken);
+  });
+
+  openApiKeyInput.addEventListener('input', (e) => {
+    setOpenApiKey(e.target.value.trim())
+    updateUI();
+  });
+
+  promptTextarea.addEventListener('input', (e) => {
+    setPrompt(e.target.value.trim());
+    updateUI();
+  });
+
+  speakerSelect.addEventListener('change', (e) => {
+    setCurrentSpeaker(e.target.value);
+    if (ttsManager) ttsManager.setSpeakerId(e.target.value);
   });
 
   startButton.addEventListener('click', handleStart);
