@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <title>Actable AI</title>
+  
+  <link rel="stylesheet" href="./style.css">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  
+  <!-- VAD Web + ONNX Runtime -->
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
+</head>
+<body>
+<div class="main-layout">
+  <div class="layout">
+    <form id="voiceForm" class="voice-form">
+      <div class="title">Voice bot</div>
+      
+      <div id="layoutVideo" class="layout-video">
+        <div id="gradientRingWrap" class="gradient-ring-wrap">
+          <div id="gradientRing" class="gradient-ring"></div>
+        </div>
+        
+        <div id="avatarVideoWrap" class="avatar-video-wrap">
+          <img src="./ky_duyen.png" alt=""/>
+          <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline
+                 class="avatar-video"></video>
+        </div>
+      </div>
+      
+      <div class="form-item">
+        <label for="message">Message</label>
+        <textarea id="message" readonly></textarea>
+      </div>
+      
+      <div class="form-item news" id="newsGroup">
+        <label for="message">News</label>
+        
+        <div class="skeleton-group" id="skeletonGroup">
+          <div class="skeleton active w-80"></div>
+          <div class="skeleton active w-60"></div>
+        </div>
+        
+        <div class="waveform-group" id="waveformGroup">
+          <div class="waveform-action" id="waveformAction">
+            <i class="fa-solid fa-play active" id="faPlayWaveform"></i>
+            <i class="fa-solid fa-pause" id="faPauseWaveform"></i>
+          </div>
+          
+          <div id="waveform">
+            <!-- the waveform will be rendered here -->
+          </div>
+        </div>
+      </div>
+      
+      <div class="form-item">
+        <div class="btn-group">
+          <button class="action-button" id="startButton">
+            <div class="inner-circle">
+              <i class="fa-solid fa-microphone active" id="faMicrophone"></i>
+              <i class="fa-solid fa-pause" id="faPause"></i>
+            </div>
+          </button>
+        </div>
+      </div>
+    </form>
+    
+    <audio id="audioElement" autoplay></audio>
+  </div>
+</div>
+
+<!-- Application Configuration -->
+<script type="module">
+  import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js'
+  import {STTManager} from './stt.js';
+  import {TTSManager} from './tts.js';
+  import {
+    messageTextarea,
+    startButton,
+    audioElement,
+    MicrophoneStatusEnum,
+    setMicrophoneStatus,
+    updateUI,
+    initializeApp,
+    addAudioChunk,
+    getNextAudioChunk,
+    hasAudioChunks,
+    setProcessingTTS,
+    isProcessingTTS,
+    isStartRecording,
+    authToken,
+    openApiKey,
+    prompt,
+    currentSpeaker,
+    setIsStartRecording,
+    clearArrAudioChunks,
+    arrAbortControllers,
+    arrAudioChunks
+  } from './app.js';
+  
+  // API Configuration
+  window.API_CONFIG = {
+    baseUrl: "https://api.blaze.vn",
+    // STT API
+    stt: {
+      baseUrl: "https://api.blaze.vn",
+      config: {
+        lazyProcess: false
+      }
+    },
+    // TTS API
+    tts: {
+      baseUrl: "https://api.blaze.vn",
+      config: {
+        normalization: 'basic',
+        language: 'vi',
+        audioFormat: 'mp3',
+        audioQuality: 32,
+        audioSpeed: '1'
+      }
+    },
+    // LLM API (OpenAI)
+    llm: {
+      provider: 'openai',
+      openai: {
+        url: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini"
+      },
+    }
+  };
+  
+  // Application Configuration
+  window.APP_CONFIG = {
+    // Voice Configuration
+    voice: {
+      defaultSpeaker: "HN-Nu-2-BL",
+    },
+    // LLM Configuration
+    llm: {
+      defaultPrompt: `Mô tả:
+
+Bạn là Nguyễn Cao Kỳ Duyên, một gương mặt nổi bật trong lĩnh vực người mẫu và truyền hình tại Việt Nam.
+Bạn đã đăng quang Hoa hậu Việt Nam 2014 và Miss Universe Vietnam 2024.
+Sau cuộc thi Miss Universe 2024 tại Mexico, nơi bạn lọt vào top 30, bạn đã tập trung vào các dự án cá nhân và việc học tại Đại học Ngoại thương.
+
+Hướng dẫn trả lời:
+
+Trả lời ngắn gọn (2-3 câu).
+Chân thành, cởi mở và sẵn sàng chia sẻ.
+Đón nhận và hỏi thêm về đối phương nếu thấy cuộc trò chuyện thú vị.
+
+Xưng hô:
+
+Gọi là "em" nếu đối phương xưng là anh hoặc chị.
+Gọi là "chị" nếu đối phương xưng là em.
+Gọi là "cháu" nếu đối phương xưng là cô, bác, chú, cháu, ông hoặc bà.
+Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi hơn.`
+    }
+  };
+  
+  const waveformAction = document.getElementById("waveformAction");
+  const faPlayWaveform = document.getElementById("faPlayWaveform");
+  const faPauseWaveform = document.getElementById("faPauseWaveform");
+  
+  // Managers
+  let sttManager = null;
+  let ttsManager = null;
+  let tts = '';
+  let wavesurfer = null;
+  let isPlayNews = false;
+  
+  // Chat History
+  let chatHistory = [];
+  
+  const classifyIntentType = {
+    online: 'online',
+    news: 'news',
+    maps: 'maps',
+  }
+  
+  const classifyIntent = async (userContent) => {
+    const systemPrompt = `
+You are an intent classifier for a voice bot.
+
+Task:
+1. If the user only wants to have a normal conversation → return {"type": "online"}
+2. If the user wants to get news or requests information that requires calling a news API → return {"type": "news", "category": "..."}
+   - "category" must be one of the following:
+     'thoi-su', 'cong-nghe', 'giai-tri', 'tin', 'doanh-nghiep', 'bat-dong-san', 'xe', 'dep-plus', 'the-gioi', 'van-hoa', 'tech-talk', 'video', 'kinh-te-xanh', 'suc-khoe', 'tech-lifestyle', 'kinh-te-so', 'thi-truong', 'khoa-hoc-cong-nghe', 'dau-tu', 'giao-duc', 'ban-doc', 'y-kien', 'kinh-doanh', 'mat-ngu', 'van-hoa-giai-tri', 'kinh-te', 'the-thao', 'doi-song', 'emagazine', 'phap-luat', 'tam-su', 'chinh-tri', 'gia-that', 'du-lich', 'thoi-tiet', 'binh-luan', 'ban-can-biet', 'gioi-tre', 'dan-sinh', 'phong-su', 'khoa-hoc'
+   - If no category can be identified → return {"type": "news", "category": ""}
+3. If the user is asking about a specific location or address → return {"type": "maps", "address": "..."}
+   - Extract the most specific address or location possible (e.g., including street number, street name, district, city if mentioned).
+   - Example: "1600 Amphitheatre Parkway, Mountain View, CA" should be returned fully as the address.
+   - If the user only provides a city or vague location, return that (e.g., "Hanoi").
+   - If the address cannot be determined clearly, set "address" as "".
+
+Only return valid JSON, no explanation.
+  `;
+    
+    const messages = [
+      {role: "system", content: systemPrompt},
+      {role: "user", content: userContent}
+    ];
+    
+    const controller = new AbortController();
+    arrAbortControllers.push(controller);
+    const response = await fetch(window.API_CONFIG.llm.openai.url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openApiKey}`,
+      },
+      body: JSON.stringify({
+        model: window.API_CONFIG.llm.openai.model,
+        messages,
+        stream: false,
+      }),
+      signal: controller.signal
+    });
+    
+    const data = await response.json();
+    const output = data.choices[0]?.message?.content?.trim();
+    
+    try {
+      return JSON.parse(output);
+    } catch (e) {
+      console.error("Failed to parse JSON:", output);
+      return {type: "online"}; // fallback
+    }
+  }
+  
+  // Stream open ai
+  const streamOpenAI = async (text) => {
+    setMicrophoneStatus(MicrophoneStatusEnum.loading)
+    try {
+      // Add user message to history
+      chatHistory.push({"role": "user", "content": text});
+      
+      const messages = [
+        {"role": "system", "content": prompt},
+        ...chatHistory
+      ]
+      const controller = new AbortController();
+      arrAbortControllers.push(controller);
+      const response = await fetch(window.API_CONFIG.llm.openai.url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${openApiKey}`,
+        },
+        body: JSON.stringify({
+          model: window.API_CONFIG.llm.openai.model,
+          messages,
+          stream: true,
+        }),
+        signal: controller.signal
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      }
+      
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let partial = "";
+      
+      while (true) {
+        const {value, done} = await reader.read();
+        if (done) break;
+        
+        const chunk = decoder.decode(value, {stream: true});
+        partial += chunk;
+        
+        const lines = partial.split("\n").filter(line => line.trim() !== "");
+        
+        for (const line of lines) {
+          if (line.startsWith("data:")) {
+            const data = line.replace("data: ", "");
+            
+            if (data === "[DONE]") {
+              // Add assistant message to history
+              if (tts) {
+                chatHistory.push({"role": "assistant", "content": tts.replace('> Assistant: ', '')});
+              }
+              messageTextarea.scrollTop = messageTextarea.scrollHeight;
+              tts = "";
+              return;
+            }
+            
+            try {
+              const parsed = JSON.parse(data);
+              const delta = parsed.choices?.[0]?.delta?.content;
+              if (delta) {
+                if (!tts) {
+                  tts = '> Assistant: ' + delta;
+                  messageTextarea.value += '> Assistant: ' + delta;
+                } else {
+                  tts += delta;
+                  messageTextarea.value += delta;
+                  messageTextarea.scrollTop = messageTextarea.scrollHeight;
+                  ttsManager.sendText(delta);
+                }
+              }
+            } catch (e) {
+              console.error("Lỗi parse:", e);
+            }
+          }
+        }
+        
+        partial = "";
+      }
+    } catch (error) {
+      console.error('OpenAI API error:', error);
+      // alert(`Error communicating with AI: ${error.message}`);
+      // setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+    }
+  }
+  
+  // Audio Handler
+  const processNextAudioElement = () => {
+    if (hasAudioChunks()) {
+      console.log(arrAudioChunks)
+      setProcessingTTS(true);
+      audioElement.src = getNextAudioChunk();
+      setMicrophoneStatus(MicrophoneStatusEnum.talking);
+      
+      audioElement.addEventListener('loadedmetadata', () => {
+        audioElement.play()
+          .then(() => {
+            // sttManager.stop()
+            setTimeout(() => {
+              setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+              
+              if (hasAudioChunks()) {
+                processNextAudioElement();
+              } else {
+                setProcessingTTS(false);
+                // sttManager.start()
+              }
+            }, (audioElement.duration || 1) * 1000);
+          })
+          .catch(() => {
+            setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+          });
+      }, {once: true});
+    }
+  };
+  
+  // State Management Functions
+  const handleClearState = async () => {
+    if (sttManager) {
+      await sttManager.stop();
+    }
+    if (ttsManager) {
+      ttsManager.disconnect();
+    }
+    setIsStartRecording(false);
+    setMicrophoneStatus(MicrophoneStatusEnum.idle);
+  };
+  
+  const handlePlayWaveform = () => {
+    isPlayNews = !isPlayNews;
+    if (isPlayNews) {
+      faPlayWaveform.classList.remove("active");
+      faPauseWaveform.classList.add("active");
+      wavesurfer.play()
+      sttManager.stop()
+      return
+    }
+    
+    sttManager.start()
+    faPlayWaveform.classList.add("active");
+    faPauseWaveform.classList.remove("active");
+    wavesurfer.pause();
+  }
+  
+  const handleGetNewsAudioSummary = async (category) => {
+    try {
+      const headers = {
+        Authorization: `Bearer ${authToken}`,
+        "Content-Type": "application/json"
+      };
+      
+      const payload = {
+        prompt: "Tóm tắt thành đoạn văn",
+        voice_id: currentSpeaker,
+        skip: 0,
+        max_items: 3
+      }
+      
+      if (category) {
+        payload.category = category;
+      }
+      
+      const response = await fetch(`${window.API_CONFIG.baseUrl}/v1/news-audio/summary`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      
+      if (!result?.url) {
+        return;
+      }
+      
+      const skeletonGroup = document.getElementById("skeletonGroup");
+      skeletonGroup.style.display = "none";
+      
+      const waveformGroup = document.getElementById("waveformGroup");
+      waveformGroup.style.display = "flex";
+      
+      wavesurfer = WaveSurfer.create({
+        container: '#waveform',
+        waveColor: '#ffffff',
+        progressColor: '#cccccc',
+        cursorWidth: 0,
+        barWidth: 2,
+        barRadius: 3,
+        url: result.url,
+        height: 40
+      })
+      
+      wavesurfer.on('finish', () => {
+        sttManager.start()
+        isPlayNews = !isPlayNews;
+        faPlayWaveform.classList.add("active");
+        faPauseWaveform.classList.remove("active");
+      });
+    } catch (error) {
+      console.error('STT Error:', error);
+    }
+  }
+  
+  // Initialize managers
+  const initializeManagers = () => {
+    try {
+      sttManager = new STTManager({
+        baseUrl: window.API_CONFIG.stt.baseUrl,
+        authToken,
+        config: window.API_CONFIG.stt.config,
+        audioElement,
+        clearAudioChunks: clearArrAudioChunks,
+        arrAbortControllers,
+        onTextReceived: async (text) => {
+          if (isPlayNews) return;
+          
+          const result = await classifyIntent(text);
+          
+          if (result?.type === classifyIntentType.news) {
+            const newsGroup = document.getElementById("newsGroup");
+            newsGroup.style.display = "block";
+            
+            const skeletonGroup = document.getElementById("skeletonGroup");
+            skeletonGroup.style.display = "block";
+            
+            const waveformGroup = document.getElementById("waveformGroup");
+            waveformGroup.style.display = "none";
+            
+            ttsManager.sendText("Đang tổng hợp tin tức, vui lòng đợi trong giây lát.")
+            handleGetNewsAudioSummary(result?.category);
+            return;
+          }
+          
+          if (messageTextarea.value) messageTextarea.value += '\n\n'
+          messageTextarea.value += `> User: ${text}\n`;
+          messageTextarea.scrollTop = messageTextarea.scrollHeight;
+          streamOpenAI(text);
+        },
+      });
+      
+      ttsManager = new TTSManager({
+        baseUrl: window.API_CONFIG.tts.baseUrl,
+        authToken,
+        speakerId: currentSpeaker,
+        config: window.API_CONFIG.tts.config,
+        onAudioReceived: (audioUrl) => {
+          addAudioChunk(audioUrl);
+          if (!isProcessingTTS()) {
+            processNextAudioElement();
+          }
+        },
+      });
+    } catch (error) {
+      console.error('Error initializing managers:', error);
+      alert('Failed to initialize voice services. Please refresh the page and try again.');
+    }
+  };
+  
+  // Event Handlers
+  const handleStart = async () => {
+    if (!authToken || !currentSpeaker || !openApiKey || !prompt) {
+      return;
+    }
+    
+    if (!sttManager || !ttsManager) {
+      initializeManagers();
+    }
+    
+    setIsStartRecording(!isStartRecording);
+    
+    if (!isStartRecording) {
+      await sttManager.stop();
+      // handleClearState();
+    } else {
+      setMicrophoneStatus(MicrophoneStatusEnum.loading);
+      await sttManager.start();
+      ttsManager.connect();
+      setMicrophoneStatus(MicrophoneStatusEnum.recording);
+    }
+  };
+  
+  // Initialize APP
+  initializeApp();
+  
+  // Fetch speakers and initialize UI
+  const initializeTTS = async () => {
+    try {
+      if (!ttsManager) {
+        ttsManager = new TTSManager({
+          baseUrl: window.API_CONFIG.tts.baseUrl,
+          config: window.API_CONFIG.tts.config
+        });
+      }
+      updateUI();
+    } catch (error) {
+      console.error('Error initializing app:', error);
+      alert('Failed to initialize application. Please refresh the page and try again.');
+    }
+  };
+  
+  startButton.addEventListener('click', handleStart);
+  waveformAction.addEventListener('click', handlePlayWaveform);
+  
+  initializeTTS();
+</script>
+</body>
+</html>
