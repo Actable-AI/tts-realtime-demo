@@ -6,7 +6,6 @@ export const speakerSelect = document.getElementById('speaker');
 export const messageTextarea = document.getElementById('message');
 export const startButton = document.getElementById('startButton');
 export const resetButton = document.getElementById('resetButton');
-export const audioElement = document.getElementById('audioElement');
 
 export const MicrophoneStatusEnum = {
   loading: 'loading',
@@ -29,8 +28,6 @@ export let authToken = '';
 export let openApiKey = '';
 export let prompt = '';
 export let currentSpeaker = '';
-export let arrAudioChunks = [];
-export let isProcessingTts = false;
 
 // Helper Functions
 export const setMicrophoneStatus = (status) => {
@@ -90,27 +87,6 @@ export const updateUI = () => {
   } else {
     startButton.classList.remove('btn-loading');
   }
-};
-
-// Audio State Management
-export const addAudioChunk = (audioUrl) => {
-  arrAudioChunks.push(audioUrl);
-};
-
-export const getNextAudioChunk = () => {
-  return arrAudioChunks.shift();
-};
-
-export const hasAudioChunks = () => {
-  return arrAudioChunks.length > 0;
-};
-
-export const setProcessingTTS = (value) => {
-  isProcessingTts = value;
-};
-
-export const isProcessingTTS = () => {
-  return isProcessingTts;
 };
 
 // Event Listeners

@@ -3,11 +3,15 @@ class TTSManager {
     this.baseUrl = options.baseUrl || '';
     this.authToken = options.authToken || '';
     this.speakerId = options.speakerId || '';
-    this.onAudioReceived = options.onAudioReceived || (() => {
-    });
+    this.config = options.config;
+    this.sttManager = options.sttManager;
+    this.MicrophoneStatusEnum = options.MicrophoneStatusEnum;
+    this.setMicrophoneStatus = options.setMicrophoneStatus;
     this.wsRef = null;
-    this.audioChunks = [];
-    this.config = options.config || {};
+    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    this.audioQueue = [];
+    this.isPlaying = false;
+    this.audioType = null;
   }
 
   getWebSocketUrl() {
@@ -32,10 +36,77 @@ class TTSManager {
     }
   }
 
+  detectAudioType(arrayBuffer) {
+    const bytes = new Uint8Array(arrayBuffer);
+    const header = String.fromCharCode(...bytes.slice(0, 4));
+
+    if (header.startsWith("RIFF")) return "wav";
+    if (header.startsWith("ID3")) return "mp3";
+    if ((bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0)) return "mp3"; // MPEG frame
+    return "pcm";
+  }
+
+  async playPCM(arrayBuffer) {
+    const pcm = new Int16Array(arrayBuffer);
+    const float32 = new Float32Array(pcm.length);
+    for (let i = 0; i < pcm.length; i++) {
+      float32[i] = pcm[i] / 32768.0;
+    }
+
+    const buffer = audioCtx.createBuffer(1, float32.length, 16000); // mono, 16kHz
+    buffer.copyToChannel(float32, 0);
+
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(audioCtx.destination);
+    source.start();
+  }
+
+  onQueueDone = () => {
+    this.setMicrophoneStatus(this.MicrophoneStatusEnum.recording)
+    this.sttManager.start()
+  };
+
+  async playQueue() {
+    if (this.isPlaying || this.audioQueue.length === 0) return;
+
+    this.setMicrophoneStatus(this.MicrophoneStatusEnum.talking)
+    this.sttManager.stop()
+    this.isPlaying = true;
+    const chunk = this.audioQueue.shift();
+
+    try {
+      const audioBuffer = await this.audioCtx.decodeAudioData(chunk.slice(0));
+      const source = this.audioCtx.createBufferSource();
+      source.buffer = audioBuffer;
+      source.connect(this.audioCtx.destination);
+
+      source.onended = () => {
+        this.isPlaying = false;
+        if (this.audioQueue.length > 0) {
+          this.playQueue();
+        } else {
+          if (this.onQueueDone) this.onQueueDone();
+        }
+      };
+
+      source.start();
+    } catch (err) {
+      console.error("Decode error:", err);
+      this.isPlaying = false;
+      if (this.audioQueue.length > 0) {
+        this.playQueue();
+      } else {
+        if (this.onQueueDone) this.onQueueDone();
+      }
+    }
+  }
+
   connect() {
     try {
       const websocket = new WebSocket(this.getWebSocketUrl());
       this.wsRef = websocket;
+      websocket.binaryType = "arraybuffer";
 
       const connectionTimeout = setTimeout(() => {
         if (websocket.readyState !== WebSocket.OPEN) {
@@ -51,8 +122,16 @@ class TTSManager {
 
       websocket.onmessage = async (event) => {
         try {
-          if (event.data instanceof Blob) {
-            this.audioChunks = [...this.audioChunks, event.data];
+          if (event.data instanceof ArrayBuffer) {
+            if (!this.audioType) this.audioType = this.detectAudioType(event.data);
+
+            if (this.audioType === "pcm") {
+              this.playPCM(event.data);
+            } else {
+              this.audioQueue.push(event.data);
+              this.playQueue();
+            }
+
             return;
           }
           const message = JSON.parse(event.data);
@@ -131,16 +210,10 @@ class TTSManager {
         break;
 
       case 'started-byte-stream':
-        this.audioChunks = [];
         break;
 
       case 'finished-byte-stream':
         console.log('Audio stream finished, processing audio...');
-        const currentChunks = [...this.audioChunks];
-        const audioBlob = new Blob(currentChunks, {type: 'audio/mp3'});
-        const audioUrl = URL.createObjectURL(audioBlob);
-        this.onAudioReceived(audioUrl);
-        this.audioChunks = [];
         break;
 
       default:

@@ -83,17 +83,11 @@
     messageTextarea,
     startButton,
     resetButton,
-    audioElement,
     MicrophoneStatusEnum,
     setMicrophoneStatus,
     updateUI,
     initializeEventListeners,
     initializeApp,
-    addAudioChunk,
-    getNextAudioChunk,
-    hasAudioChunks,
-    setProcessingTTS,
-    isProcessingTTS,
     isStartRecording,
     authToken,
     openApiKey,
@@ -258,37 +252,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     }
   }
 
-  // Audio Handler
-  const processNextAudioElement = () => {
-    if (hasAudioChunks()) {
-      setProcessingTTS(true);
-      const nextElement = getNextAudioChunk();
-
-      audioElement.src = nextElement;
-      setMicrophoneStatus(MicrophoneStatusEnum.talking);
-
-      audioElement.addEventListener('loadedmetadata', () => {
-        audioElement.play()
-            .then(() => {
-              sttManager.stop()
-              setTimeout(() => {
-                setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
-
-                if (hasAudioChunks()) {
-                  processNextAudioElement();
-                } else {
-                  setProcessingTTS(false);
-                  sttManager.start()
-                }
-              }, (audioElement.duration || 1) * 1000);
-            })
-            .catch(() => {
-              setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
-            });
-      }, {once: true});
-    }
-  };
-
   // State Management Functions
   const handleClearState = async () => {
     if (sttManager) {
@@ -327,12 +290,9 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         authToken,
         speakerId: currentSpeaker,
         config: window.API_CONFIG.tts.config,
-        onAudioReceived: (audioUrl) => {
-          addAudioChunk(audioUrl);
-          if (!isProcessingTTS()) {
-            processNextAudioElement();
-          }
-        },
+        sttManager: sttManager,
+        MicrophoneStatusEnum: MicrophoneStatusEnum,
+        setMicrophoneStatus: setMicrophoneStatus,
       });
     } catch (error) {
       console.error('Error initializing managers:', error);
