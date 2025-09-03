@@ -152,6 +152,7 @@ class TTSManager {
       websocket.onclose = (event) => {
         console.log(`Connection WebSocket TTS closed. Code: ${event.code}, Reason: ${event.reason || 'No reason provided'}`);
         this.disconnect();
+        if (event.code === 1000) alert(`Error connecting to TTS: Connection timeout`);
       };
     } catch (error) {
       console.error('Error connecting to TTS:', error);

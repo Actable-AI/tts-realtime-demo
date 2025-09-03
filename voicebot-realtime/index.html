@@ -227,15 +227,15 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) {
+                ttsManager.sendText(delta);
+                
                 if (!tts) {
                   tts = '> Assistant: ' + delta;
                   messageTextarea.value += '> Assistant: ' + delta;
-                  ttsManager.sendText(delta);
                 } else {
                   tts += delta;
                   messageTextarea.value += delta;
                   messageTextarea.scrollTop = messageTextarea.scrollHeight;
-                  ttsManager.sendText(delta);
                 }
               }
             } catch (e) {
