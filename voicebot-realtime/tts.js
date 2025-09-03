@@ -53,12 +53,12 @@ class TTSManager {
       float32[i] = pcm[i] / 32768.0;
     }
 
-    const buffer = audioCtx.createBuffer(1, float32.length, 16000); // mono, 16kHz
+    const buffer = this.audioCtx.createBuffer(1, float32.length, 16000); // mono, 16kHz
     buffer.copyToChannel(float32, 0);
 
-    const source = audioCtx.createBufferSource();
+    const source = this.audioCtx.createBufferSource();
     source.buffer = buffer;
-    source.connect(audioCtx.destination);
+    source.connect(this.audioCtx.destination);
     source.start();
   }
 

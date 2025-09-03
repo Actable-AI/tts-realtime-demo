@@ -230,6 +230,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                 if (!tts) {
                   tts = '> Assistant: ' + delta;
                   messageTextarea.value += '> Assistant: ' + delta;
+                  ttsManager.sendText(delta);
                 } else {
                   tts += delta;
                   messageTextarea.value += delta;
