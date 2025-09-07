@@ -8,10 +8,10 @@ class TTSManager {
     this.MicrophoneStatusEnum = options.MicrophoneStatusEnum;
     this.setMicrophoneStatus = options.setMicrophoneStatus;
     this.wsRef = null;
-    this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    this.audioQueue = [];
-    this.isPlaying = false;
-    this.audioType = null;
+    this.resetAndPrepareAudio()
+    this.isStreamFinished = false;
+    this.sentenceCount = 0;
+    this.finishedSentenceCount = 0;
   }
 
   getWebSocketUrl() {
@@ -36,71 +36,79 @@ class TTSManager {
     }
   }
 
-  detectAudioType(arrayBuffer) {
-    const bytes = new Uint8Array(arrayBuffer);
-    const header = String.fromCharCode(...bytes.slice(0, 4));
+  // --- Audio Management ---
 
-    if (header.startsWith("RIFF")) return "wav";
-    if (header.startsWith("ID3")) return "mp3";
-    if ((bytes[0] === 0xFF && (bytes[1] & 0xE0) === 0xE0)) return "mp3"; // MPEG frame
-    return "pcm";
-  }
-
-  async playPCM(arrayBuffer) {
-    const pcm = new Int16Array(arrayBuffer);
-    const float32 = new Float32Array(pcm.length);
-    for (let i = 0; i < pcm.length; i++) {
-      float32[i] = pcm[i] / 32768.0;
+  resetAndPrepareAudio() {
+    // Stop and clean up any previous audio playback
+    if (this.audio) {
+      this.audio.pause();
+      this.audio.src = '';
     }
 
-    const buffer = this.audioCtx.createBuffer(1, float32.length, 16000); // mono, 16kHz
-    buffer.copyToChannel(float32, 0);
+    // Create new audio and media source objects for a clean start
+    this.mediaSource = new MediaSource();
+    this.audio = new Audio();
+    this.audio.src = URL.createObjectURL(this.mediaSource);
+    this.sourceBuffer = null;
+    this.firstChunkAppended = false;
+    this.isStreamFinished = false;
 
-    const source = this.audioCtx.createBufferSource();
-    source.buffer = buffer;
-    source.connect(this.audioCtx.destination);
-    source.start();
+    // Re-attach listeners for the new objects
+    this.audio.onended = () => {
+      this.onQueueDone();
+    };
+
+    this.mediaSource.addEventListener("sourceopen", () => {
+      if (!this.sourceBuffer) {
+        this.sourceBuffer = this.mediaSource.addSourceBuffer('audio/mpeg');
+      }
+
+      // Listen for the 'updateend' event to know when the source buffer is empty
+      this.sourceBuffer.addEventListener("updateend", () => {
+        if (!this.sourceBuffer.updating && this.mediaSource.readyState === "open" && this.isStreamFinished) {
+          console.log(this.sentenceCount)
+          console.log(this.finishedSentenceCount)
+          if (this.sentenceCount === this.finishedSentenceCount) this.mediaSource.endOfStream();
+        }
+      });
+    }, { once: true });
   }
 
-  onQueueDone = () => {
-    this.setMicrophoneStatus(this.MicrophoneStatusEnum.recording)
-    this.sttManager.start()
+  onQueueProcessingRequest = () => {
+    this.sttManager.stop()
+    this.setMicrophoneStatus(this.MicrophoneStatusEnum.talking);
   };
 
-  async playQueue() {
-    if (this.isPlaying || this.audioQueue.length === 0) return;
+  onQueueDone = () => {
+    this.sentenceCount = 0;
+    this.finishedSentenceCount = 0;
+    this.sttManager.start();
+    this.setMicrophoneStatus(this.MicrophoneStatusEnum.recording);
+    this.resetAndPrepareAudio()
+  };
 
-    this.setMicrophoneStatus(this.MicrophoneStatusEnum.talking)
-    this.sttManager.stop()
-    this.isPlaying = true;
-    const chunk = this.audioQueue.shift();
-
-    try {
-      const audioBuffer = await this.audioCtx.decodeAudioData(chunk.slice(0));
-      const source = this.audioCtx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(this.audioCtx.destination);
-
-      source.onended = () => {
-        this.isPlaying = false;
-        if (this.audioQueue.length > 0) {
-          this.playQueue();
-        } else {
-          if (this.onQueueDone) this.onQueueDone();
-        }
-      };
-
-      source.start();
-    } catch (err) {
-      console.error("Decode error:", err);
-      this.isPlaying = false;
-      if (this.audioQueue.length > 0) {
-        this.playQueue();
-      } else {
-        if (this.onQueueDone) this.onQueueDone();
+  appendChunk(data) {
+    return new Promise((resolve, reject) => {
+      if (!this.sourceBuffer) {
+        // SourceBuffer is not ready, retry after a short delay
+        setTimeout(() => this.appendChunk(data).then(resolve).catch(reject), 50);
+        return;
       }
-    }
+      if (this.sourceBuffer.updating) {
+        this.sourceBuffer.addEventListener("updateend", () => this.appendChunk(data).then(resolve).catch(reject), { once: true });
+        return;
+      }
+      try {
+        this.sourceBuffer.appendBuffer(data);
+        this.sourceBuffer.addEventListener("updateend", resolve, { once: true });
+      } catch (e) {
+        console.error("Error appending buffer:", e);
+        reject(e);
+      }
+    });
   }
+
+  // --- WebSocket Connection ---
 
   connect() {
     try {
@@ -123,13 +131,12 @@ class TTSManager {
       websocket.onmessage = async (event) => {
         try {
           if (event.data instanceof ArrayBuffer) {
-            if (!this.audioType) this.audioType = this.detectAudioType(event.data);
+            this.appendChunk(event.data);
+            this.onQueueProcessingRequest()
 
-            if (this.audioType === "pcm") {
-              this.playPCM(event.data);
-            } else {
-              this.audioQueue.push(event.data);
-              this.playQueue();
+            if (!this.firstChunkAppended) {
+              this.firstChunkAppended = true;
+              this.audio.play().catch(err => console.log("Autoplay blocked:", err));
             }
 
             return;
@@ -165,11 +172,12 @@ class TTSManager {
       this.wsRef.close();
       this.wsRef = null;
     }
-    this.audioChunks = [];
   }
 
+  // --- Messaging and State Handling ---
+
   sendText(text) {
-    if (!text || !this.wsRef?.readyState === WebSocket.OPEN) {
+    if (!text || !this.wsRef || this.wsRef.readyState !== WebSocket.OPEN) {
       throw new Error('Cannot send text');
     }
 
@@ -201,10 +209,12 @@ class TTSManager {
       case 'successful-authentication':
         if (this.wsRef?.readyState === WebSocket.OPEN) {
           setTimeout(() => {
+            this.sentenceCount++
             this.sendText('Xin chào,');
           }, 100);
 
           setTimeout(() => {
+            this.sentenceCount++
             this.sendText('Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
           }, 500);
         }
@@ -215,6 +225,8 @@ class TTSManager {
 
       case 'finished-byte-stream':
         console.log('Audio stream finished, processing audio...');
+        this.finishedSentenceCount++;
+        this.isStreamFinished = true;
         break;
 
       default:
@@ -222,12 +234,18 @@ class TTSManager {
     }
   }
 
+  // --- Configuration Setters ---
+
   setAuthToken(token) {
     this.authToken = token;
   }
 
   setSpeakerId(speakerId) {
     this.speakerId = speakerId;
+  }
+
+  setSentenceCount(sentenceCount) {
+    this.sentenceCount = sentenceCount;
   }
 }
 

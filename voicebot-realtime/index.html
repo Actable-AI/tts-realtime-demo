@@ -169,7 +169,12 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   
   // Stream open ai
   const streamOpenAI = async (text) => {
-    setMicrophoneStatus(MicrophoneStatusEnum.loading)
+    setMicrophoneStatus(MicrophoneStatusEnum.loading);
+    let ttsBuffer = "";
+    let sentenceCount = 0;
+    
+    const isSentenceEnding = (word) => /[,.!?…;:]+/.test(word);
+    
     try {
       // Add user message to history
       chatHistory.push({"role": "user", "content": text});
@@ -199,43 +204,67 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let partial = "";
-
+      
       while (true) {
-        const {value, done} = await reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
-
-        const chunk = decoder.decode(value, {stream: true});
+        
+        const chunk = decoder.decode(value, { stream: true });
         partial += chunk;
-
-        const lines = partial.split("\n").filter(line => line.trim() !== "");
-
+        
+        const lines = partial.split("\n").filter((line) => line.trim() !== "");
+        
         for (const line of lines) {
           if (line.startsWith("data:")) {
             const data = line.replace("data: ", "");
-
+            
             if (data === "[DONE]") {
-              // Add assistant message to history
-              if (tts) {
-                chatHistory.push({"role": "assistant", "content": tts.replace('> Assistant: ', '')});
+              if (ttsBuffer.trim()) {
+                ttsManager.sendText(ttsBuffer);
+                
+                if (isSentenceEnding(ttsBuffer)) {
+                  sentenceCount++;
+                  ttsManager.setSentenceCount(sentenceCount);
+                  console.log(sentenceCount);
+                }
+                
+                ttsBuffer = "";
               }
+              
+              chatHistory.push({
+                role: "assistant",
+                content: tts.replace("> Assistant: ", ""),
+              });
               messageTextarea.scrollTop = messageTextarea.scrollHeight;
               tts = "";
               return;
             }
-
+            
             try {
               const parsed = JSON.parse(data);
               const delta = parsed.choices?.[0]?.delta?.content;
               if (delta) {
-                ttsManager.sendText(delta);
-                
+                ttsBuffer += delta;
                 if (!tts) {
                   tts = '> Assistant: ' + delta;
                   messageTextarea.value += '> Assistant: ' + delta;
                 } else {
                   tts += delta;
                   messageTextarea.value += delta;
-                  messageTextarea.scrollTop = messageTextarea.scrollHeight;
+                }
+                messageTextarea.scrollTop = messageTextarea.scrollHeight;
+                
+                let spaceIndex;
+                while ((spaceIndex = ttsBuffer.indexOf(" ")) !== -1) {
+                  const word = ttsBuffer.slice(0, spaceIndex + 1);
+                  ttsManager.sendText(word);
+                  
+                  if (isSentenceEnding(word)) {
+                    sentenceCount++
+                    ttsManager.setSentenceCount(sentenceCount);
+                  }
+                  
+                  ttsBuffer = ttsBuffer.slice(spaceIndex + 1);
                 }
               }
             } catch (e) {
