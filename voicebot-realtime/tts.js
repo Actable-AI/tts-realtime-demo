@@ -66,8 +66,6 @@ class TTSManager {
       // Listen for the 'updateend' event to know when the source buffer is empty
       this.sourceBuffer.addEventListener("updateend", () => {
         if (!this.sourceBuffer.updating && this.mediaSource.readyState === "open" && this.isStreamFinished) {
-          console.log(this.sentenceCount)
-          console.log(this.finishedSentenceCount)
           if (this.sentenceCount === this.finishedSentenceCount) this.mediaSource.endOfStream();
         }
       });
