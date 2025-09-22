@@ -18,7 +18,7 @@ class STTManager {
       const formData = new FormData();
       formData.append('audio_file', audioBlob, 'audio.wav');
 
-      const response = await fetch(`${this.baseUrl}/stt/execute?lazy_process=${this.config.lazyProcess || false}`, {
+      const response = await fetch(`${this.baseUrl}/stt/transcribe`, {
         method: 'POST',
         headers: {
           ...headers,
