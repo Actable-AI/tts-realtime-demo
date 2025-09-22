@@ -208,13 +208,8 @@ class TTSManager {
         if (this.wsRef?.readyState === WebSocket.OPEN) {
           setTimeout(() => {
             this.sentenceCount++
-            this.sendText('Xin chào,');
+            this.sendText('Xin chào, Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
           }, 100);
-
-          setTimeout(() => {
-            this.sentenceCount++
-            this.sendText('Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
-          }, 500);
         }
         break;
 

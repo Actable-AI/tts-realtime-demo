@@ -31,7 +31,7 @@ class STTManager {
       }
 
       const result = await response.json();
-      const text = result?.result?.data?.raw_text;
+      const text = result?.result?.data?.raw_text || result?.transcription || result?.raw_text;
       this.onTextReceived(text);
     } catch (error) {
       console.error('STT Error:', error);
