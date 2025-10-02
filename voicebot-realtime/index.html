@@ -104,18 +104,18 @@
   window.API_CONFIG = {
     // STT API
     stt: {
-      baseUrl: "https://api.blaze.vn/v1",
+      baseUrl: "https://dev-api.blaze.vn/v1",
       config: {
         lazyProcess: false
       }
     },
     // TTS API
     tts: {
-      baseUrl: "https://api.blaze.vn/v1",
+      baseUrl: "https://dev-api.blaze.vn/v1",
       config: {
         normalization: 'basic',
         language: 'vi',
-        audioFormat: 'mp3',
+        audioFormat: 'pcm',
         audioQuality: 32,
         audioSpeed: '1'
       }
@@ -171,10 +171,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   const streamOpenAI = async (text) => {
     setMicrophoneStatus(MicrophoneStatusEnum.loading);
     let ttsBuffer = "";
-    let sentenceCount = 0;
-    
-    const isSentenceEnding = (word) => /[,.!?…;:]+/.test(word);
-    
+
     try {
       // Add user message to history
       chatHistory.push({"role": "user", "content": text});
@@ -221,12 +218,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             if (data === "[DONE]") {
               if (ttsBuffer.trim()) {
                 ttsManager.sendText(ttsBuffer);
-                
-                if (isSentenceEnding(ttsBuffer)) {
-                  sentenceCount++;
-                  ttsManager.setSentenceCount(sentenceCount);
-                }
-                
                 ttsBuffer = "";
               }
               
@@ -257,12 +248,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                 while ((spaceIndex = ttsBuffer.indexOf(" ")) !== -1) {
                   const word = ttsBuffer.slice(0, spaceIndex + 1);
                   ttsManager.sendText(word);
-                  
-                  if (isSentenceEnding(word)) {
-                    sentenceCount++
-                    ttsManager.setSentenceCount(sentenceCount);
-                  }
-                  
                   ttsBuffer = ttsBuffer.slice(spaceIndex + 1);
                 }
               }
