@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+  
   <title>Actable AI</title>
-
+  
   <link rel="stylesheet" href="./style.css">
-
+  
   <!-- VAD Web + ONNX Runtime -->
   <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
@@ -17,56 +17,56 @@
   <div class="layout">
     <form id="voiceForm">
       <h2>Voice-bot realtime</h2>
-
+      
       <div id="layoutVideo" class="layout-video">
         <div id="gradientRingWrap" class="gradient-ring-wrap">
           <div id="gradientRing" class="gradient-ring"></div>
         </div>
-
+        
         <div id="avatarVideoWrap" class="avatar-video-wrap">
           <img src="./ky_duyen.png" alt=""/>
           <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline
                  class="avatar-video"></video>
         </div>
       </div>
-
+      
       <div class="form-item">
         <label for="authToken" class="required">Blaze API key</label>
         <input type="text" id="authToken" required>
       </div>
-
+      
       <div class="form-item">
         <label for="openApiKey" class="required">Open API Key</label>
         <input type="text" id="openApiKey" required>
       </div>
-
+      
       <div class="form-item">
         <label for="prompt" class="required">Prompt</label>
         <textarea id="prompt" required></textarea>
       </div>
-
+      
       <div class="form-item">
         <label for="speaker">Speaker</label>
         <select id="speaker"></select>
       </div>
-
+      
       <div class="form-item">
         <label for="message">Message</label>
         <textarea id="message" readonly></textarea>
       </div>
-
+      
       <div class="form-item">
         <div class="btn-group">
           <button type="button" id="resetButton" class="btn">Reset</button>
           <button type="button" id="startButton" class="btn btn-primary">Start</button>
         </div>
       </div>
-
+      
       <div class="link-repo">
         <a href="https://github.com/Actable-AI/tts-realtime-demo/tree/main/voicebot-realtime" target="_blank">https://github.com/Actable-AI/tts-realtime-demo</a>
       </div>
     </form>
-
+    
     <audio id="audioElement" autoplay></audio>
   </div>
 </div>
@@ -83,11 +83,17 @@
     messageTextarea,
     startButton,
     resetButton,
+    audioElement,
     MicrophoneStatusEnum,
     setMicrophoneStatus,
     updateUI,
     initializeEventListeners,
     initializeApp,
+    addAudioChunk,
+    getNextAudioChunk,
+    hasAudioChunks,
+    setProcessingTTS,
+    isProcessingTTS,
     isStartRecording,
     authToken,
     openApiKey,
@@ -99,7 +105,7 @@
     setCurrentSpeaker,
     setIsStartRecording
   } from './app.js';
-
+  
   // API Configuration
   window.API_CONFIG = {
     // STT API
@@ -115,7 +121,7 @@
       config: {
         normalization: 'basic',
         language: 'vi',
-        audioFormat: 'pcm',
+        audioFormat: 'mp3',
         audioQuality: 32,
         audioSpeed: '1'
       }
@@ -129,7 +135,7 @@
       },
     }
   };
-
+  
   // Application Configuration
   window.APP_CONFIG = {
     // Voice Configuration
@@ -158,7 +164,7 @@ Gọi là "cháu" nếu đối phương xưng là cô, bác, chú, cháu, ông h
 Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi hơn.`
     }
   };
-
+  
   // Managers
   let sttManager = null;
   let ttsManager = null;
@@ -171,7 +177,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   const streamOpenAI = async (text) => {
     setMicrophoneStatus(MicrophoneStatusEnum.loading);
     let ttsBuffer = "";
-
+    
     try {
       // Add user message to history
       chatHistory.push({"role": "user", "content": text});
@@ -192,12 +198,12 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           stream: true,
         }),
       });
-
+      
       if (!response.ok) {
         const errorText = await response.text();
         throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
-
+      
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let partial = "";
@@ -256,7 +262,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             }
           }
         }
-
+        
         partial = "";
       }
     } catch (error) {
@@ -265,7 +271,38 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
     }
   }
-
+  
+  // Audio Handler
+  const processNextAudioElement = () => {
+    if (hasAudioChunks()) {
+      setProcessingTTS(true);
+      const nextElement = getNextAudioChunk();
+      
+      audioElement.src = nextElement;
+      setMicrophoneStatus(MicrophoneStatusEnum.talking);
+      
+      audioElement.addEventListener('loadedmetadata', () => {
+        audioElement.play()
+          .then(() => {
+            sttManager.stop()
+            setTimeout(() => {
+              setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+              
+              if (hasAudioChunks()) {
+                processNextAudioElement();
+              } else {
+                setProcessingTTS(false);
+                sttManager.start()
+              }
+            }, (audioElement.duration || 1) * 1000);
+          })
+          .catch(() => {
+            setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+          });
+      }, {once: true});
+    }
+  };
+  
   // State Management Functions
   const handleClearState = async () => {
     if (sttManager) {
@@ -277,13 +314,13 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     setIsStartRecording(false);
     setMicrophoneStatus(MicrophoneStatusEnum.idle);
   };
-
+  
   const handleReset = async () => {
     messageTextarea.value = '';
     chatHistory = [];
     handleClearState();
   };
-
+  
   // Initialize managers
   const initializeManagers = () => {
     try {
@@ -298,34 +335,37 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           streamOpenAI(text);
         },
       });
-
+      
       ttsManager = new TTSManager({
         baseUrl: window.API_CONFIG.tts.baseUrl,
         authToken,
         speakerId: currentSpeaker,
         config: window.API_CONFIG.tts.config,
-        sttManager: sttManager,
-        MicrophoneStatusEnum: MicrophoneStatusEnum,
-        setMicrophoneStatus: setMicrophoneStatus,
+        onAudioReceived: (audioUrl) => {
+          addAudioChunk(audioUrl);
+          if (!isProcessingTTS()) {
+            processNextAudioElement();
+          }
+        },
       });
     } catch (error) {
       console.error('Error initializing managers:', error);
       alert('Failed to initialize voice services. Please refresh the page and try again.');
     }
   };
-
+  
   // Event Handlers
   const handleStart = async () => {
     if (!authToken || !currentSpeaker || !openApiKey || !prompt) {
       return;
     }
-
+    
     if (!sttManager || !ttsManager) {
       initializeManagers();
     }
-
+    
     setIsStartRecording(!isStartRecording);
-
+    
     if (!isStartRecording) {
       await sttManager.stop();
       handleClearState();
@@ -336,10 +376,10 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       setMicrophoneStatus(MicrophoneStatusEnum.recording);
     }
   };
-
+  
   // Initialize APP
   initializeApp();
-
+  
   // Fetch speakers and initialize UI
   const initializeTTS = async () => {
     try {
@@ -350,15 +390,15 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         });
       }
       const speakers = await ttsManager.fetchSpeakers();
-
+      
       if (speakers.length === 0) {
         alert('No speakers available. Please check your connection and try again.');
         return;
       }
-
+      
       // Clear existing options
       speakerSelect.innerHTML = '';
-
+      
       // Add new options
       speakers.forEach(speaker => {
         const option = document.createElement('option');
@@ -366,7 +406,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         option.textContent = speaker.name;
         speakerSelect.appendChild(option);
       });
-
+      
       // Set default value if available
       if (speakers.length > 0) {
         const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
@@ -378,17 +418,17 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           setCurrentSpeaker(speakers[0].id);
           speakerSelect.value = currentSpeaker;
         }
-
+        
         if (ttsManager) ttsManager.setSpeakerId(currentSpeaker);
       }
-
+      
       updateUI();
     } catch (error) {
       console.error('Error initializing app:', error);
       alert('Failed to initialize application. Please refresh the page and try again.');
     }
   };
-
+  
   // Initialize event listeners
   initializeEventListeners();
   
@@ -398,25 +438,25 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
     if (sttManager) sttManager.setAuthToken(authToken);
     if (ttsManager) ttsManager.setAuthToken(authToken);
   });
-
+  
   openApiKeyInput.addEventListener('input', (e) => {
     setOpenApiKey(e.target.value.trim())
     updateUI();
   });
-
+  
   promptTextarea.addEventListener('input', (e) => {
     setPrompt(e.target.value.trim());
     updateUI();
   });
-
+  
   speakerSelect.addEventListener('change', (e) => {
     setCurrentSpeaker(e.target.value);
     if (ttsManager) ttsManager.setSpeakerId(e.target.value);
   });
-
+  
   startButton.addEventListener('click', handleStart);
   resetButton.addEventListener('click', handleReset);
-
+  
   initializeTTS();
 </script>
 </body>
