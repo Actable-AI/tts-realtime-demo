@@ -48,8 +48,8 @@ export const setOpenApiKey = (apiKey) => {
   updateUI();
 };
 
-export const setPrompt = (prompt) => {
-  openApiKey = prompt;
+export const setPrompt = (promptValue) => {
+  prompt = promptValue;
   updateUI();
 };
 
