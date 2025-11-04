@@ -110,20 +110,21 @@
   window.API_CONFIG = {
     // STT API
     stt: {
-      baseUrl: "https://api.blaze.vn/v1",
+      baseUrl: "https://dev-api.blaze.vn/v1",
       config: {
         lazyProcess: false
       }
     },
     // TTS API
     tts: {
-      baseUrl: "https://api.blaze.vn/v1",
+      baseUrl: "https://dev-api.blaze.vn/v1",
       config: {
         normalization: 'basic',
         language: 'vi',
         audioFormat: 'mp3',
         audioQuality: 32,
-        audioSpeed: '1'
+        audioSpeed: '1',
+        model: 'v1.5_pro'
       }
     },
     // LLM API (OpenAI)
@@ -204,6 +205,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
       }
       
+      ttsManager.sendEvent('start-session');
       const reader = response.body.getReader();
       const decoder = new TextDecoder("utf-8");
       let partial = "";
@@ -224,6 +226,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             if (data === "[DONE]") {
               if (ttsBuffer.trim()) {
                 ttsManager.sendText(ttsBuffer);
+                ttsManager.sendEvent('end-session');
                 ttsBuffer = "";
               }
               

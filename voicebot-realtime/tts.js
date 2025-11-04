@@ -88,7 +88,18 @@ class TTSManager {
     this.audioChunks = [];
   }
 
-  sendText(text) {
+  sendEvent(event) {
+    if (!event || !this.wsRef?.readyState === WebSocket.OPEN) {
+      throw new Error('Cannot send event');
+    }
+
+    const queryEvent = {
+      event
+    };
+    this.wsRef.send(JSON.stringify(queryEvent));
+  }
+
+  async sendText(text) {
     if (!text || !this.wsRef?.readyState === WebSocket.OPEN) {
       throw new Error('Cannot send text');
     }
@@ -101,6 +112,7 @@ class TTSManager {
       audio_quality: this.config.audioQuality || 32,
       audio_speed: this.config.audioSpeed || '1',
       speaker_id: this.speakerId,
+      model: this.config.model || 'v1.5_pro',
     };
     this.wsRef.send(JSON.stringify(queryMessage));
   }
@@ -120,6 +132,7 @@ class TTSManager {
 
       case 'successful-authentication':
         if (this.wsRef?.readyState === WebSocket.OPEN) {
+          this.sendEvent('start-session');
           setTimeout(() => {
             this.sendText('Xin chào,');
           }, 100);
@@ -127,6 +140,7 @@ class TTSManager {
           setTimeout(() => {
             this.sendText('Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
           }, 500);
+          this.sendEvent('end-session');
         }
         break;
 
