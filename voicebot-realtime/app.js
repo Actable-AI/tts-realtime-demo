@@ -3,6 +3,7 @@ export const authTokenInput = document.getElementById('authToken');
 export const openApiKeyInput = document.getElementById('openApiKey');
 export const promptTextarea = document.getElementById('prompt');
 export const speakerSelect = document.getElementById('speaker');
+export const audioFormatSelect = document.getElementById('audioFormat');
 export const messageTextarea = document.getElementById('message');
 export const startButton = document.getElementById('startButton');
 export const resetButton = document.getElementById('resetButton');
@@ -29,6 +30,7 @@ export let authToken = '';
 export let openApiKey = '';
 export let prompt = '';
 export let currentSpeaker = '';
+export let audioFormat = 'mp3';
 export let arrAudioChunks = [];
 export let isProcessingTts = false;
 
@@ -58,6 +60,11 @@ export const setCurrentSpeaker = (speakerId) => {
   updateUI();
 };
 
+export const setAudioFormat = (format) => {
+  audioFormat = format;
+  updateUI();
+};
+
 export const setIsStartRecording = (value) => {
   isStartRecording = value;
   updateUI();
@@ -81,6 +88,7 @@ export const updateUI = () => {
   openApiKeyInput.disabled = isStartRecording;
   promptTextarea.disabled = isStartRecording;
   speakerSelect.disabled = isStartRecording;
+  audioFormatSelect.disabled = isStartRecording;
 
   startButton.disabled = isRecordingDisabled;
   startButton.textContent = isLoading ? 'Loading' : isStartRecording ? "Stop" : "Start";

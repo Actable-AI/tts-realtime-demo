@@ -45,9 +45,19 @@
         <textarea id="prompt" required></textarea>
       </div>
       
-      <div class="form-item">
-        <label for="speaker">Speaker</label>
-        <select id="speaker"></select>
+      <div class="form-group">
+        <div class="form-item">
+          <label for="speaker">Speaker</label>
+          <select id="speaker"></select>
+        </div>
+        
+        <div class="form-item">
+          <label for="audioFormat">Audio format</label>
+          <select id="audioFormat">
+            <option value="mp3">MP3</option>
+            <option value="pcm">PCM</option>
+          </select>
+        </div>
       </div>
       
       <div class="form-item">
@@ -80,6 +90,7 @@
     openApiKeyInput,
     promptTextarea,
     speakerSelect,
+    audioFormatSelect,
     messageTextarea,
     startButton,
     resetButton,
@@ -99,10 +110,12 @@
     openApiKey,
     prompt,
     currentSpeaker,
+    audioFormat,
     setAuthToken,
     setOpenApiKey,
     setPrompt,
     setCurrentSpeaker,
+    setAudioFormat,
     setIsStartRecording
   } from './app.js';
   
@@ -343,13 +356,19 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         baseUrl: window.API_CONFIG.tts.baseUrl,
         authToken,
         speakerId: currentSpeaker,
-        config: window.API_CONFIG.tts.config,
+        config: {
+          ...window.API_CONFIG.tts.config,
+          audioFormat: audioFormat
+        },
         onAudioReceived: (audioUrl) => {
           addAudioChunk(audioUrl);
           if (!isProcessingTTS()) {
             processNextAudioElement();
           }
         },
+        sttManager: sttManager,
+        MicrophoneStatusEnum: MicrophoneStatusEnum,
+        setMicrophoneStatus: setMicrophoneStatus,
       });
     } catch (error) {
       console.error('Error initializing managers:', error);
@@ -383,13 +402,19 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   // Initialize APP
   initializeApp();
   
+  // Initialize audio format
+  audioFormatSelect.value = audioFormat;
+  
   // Fetch speakers and initialize UI
   const initializeTTS = async () => {
     try {
       if (!ttsManager) {
         ttsManager = new TTSManager({
           baseUrl: window.API_CONFIG.tts.baseUrl,
-          config: window.API_CONFIG.tts.config
+          config: {
+            ...window.API_CONFIG.tts.config,
+            audioFormat: audioFormat
+          }
         });
       }
       const speakers = await ttsManager.fetchSpeakers();
@@ -455,6 +480,11 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
   speakerSelect.addEventListener('change', (e) => {
     setCurrentSpeaker(e.target.value);
     if (ttsManager) ttsManager.setSpeakerId(e.target.value);
+  });
+  
+  audioFormatSelect.addEventListener('change', (e) => {
+    setAudioFormat(e.target.value);
+    if (ttsManager) ttsManager.setAudioFormat(e.target.value);
   });
   
   startButton.addEventListener('click', handleStart);
