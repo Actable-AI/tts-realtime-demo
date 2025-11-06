@@ -550,6 +550,10 @@ class TTSManager {
       this.wsRef.binaryType = "blob";
     }
   }
+
+  setAudioSpeed(speed) {
+    this.config.audioSpeed = speed;
+  }
 }
 
 export {TTSManager};
