@@ -1,194 +1,207 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  
-  <title>Actable AI</title>
-  
-  <link rel="stylesheet" href="./style.css">
-  
-  <!-- VAD Web + ONNX Runtime -->
-  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
-</head>
-<body>
-<div class="main-layout">
-  <div class="layout">
-    <form id="voiceForm">
-      <h2>Voice-bot realtime</h2>
-      
-      <div id="layoutVideo" class="layout-video">
-        <div id="gradientRingWrap" class="gradient-ring-wrap">
-          <div id="gradientRing" class="gradient-ring"></div>
-        </div>
-        
-        <div id="avatarVideoWrap" class="avatar-video-wrap">
-          <img src="./ky_duyen.png" alt=""/>
-          <video id="avatarVideo" src='./ky_duyen_loop.mp4' autoPlay muted loop playsInline
-                 class="avatar-video"></video>
-        </div>
-      </div>
-      
-      <div class="form-item">
-        <label for="authToken" class="required">Blaze API key</label>
-        <input type="text" id="authToken" required>
-      </div>
-      
-      <div class="form-item">
-        <label for="openApiKey" class="required">Open API Key</label>
-        <input type="text" id="openApiKey" required>
-      </div>
-      
-      <div class="form-item">
-        <label for="prompt" class="required">Prompt</label>
-        <textarea id="prompt" required></textarea>
-      </div>
-      
-      <div class="form-group">
-        <div class="form-item">
-          <label for="speaker">Speaker</label>
-          <select id="speaker"></select>
-        </div>
-        
-        <div class="form-item">
-          <label for="audioFormat">Audio format</label>
-          <select id="audioFormat">
-            <option value="mp3">MP3</option>
-            <option value="pcm">PCM</option>
-          </select>
-        </div>
-        
-        <div class="form-item">
-          <label for="audioSpeed">Speed</label>
-          <select id="audioSpeed">
-            <option value="0.5">0.5x</option>
-            <option value="0.55">0.55x</option>
-            <option value="0.6">0.6x</option>
-            <option value="0.65">0.65x</option>
-            <option value="0.7">0.7x</option>
-            <option value="0.75">0.75x</option>
-            <option value="0.8">0.8x</option>
-            <option value="0.85">0.85x</option>
-            <option value="0.9">0.9x</option>
-            <option value="0.95">0.95x</option>
-            <option value="1" selected>1x</option>
-            <option value="1.05">1.05x</option>
-            <option value="1.1">1.1x</option>
-            <option value="1.15">1.15x</option>
-            <option value="1.2">1.2x</option>
-            <option value="1.25">1.25x</option>
-            <option value="1.3">1.3x</option>
-            <option value="1.35">1.35x</option>
-            <option value="1.4">1.4x</option>
-            <option value="1.45">1.45x</option>
-            <option value="1.5">1.5x</option>
-          </select>
-        </div>
-      </div>
-      
-      <div class="form-item">
-        <label for="message">Message</label>
-        <textarea id="message" readonly></textarea>
-      </div>
-      
-      <div class="form-item">
-        <div class="btn-group">
-          <button type="button" id="resetButton" class="btn">Reset</button>
-          <button type="button" id="startButton" class="btn btn-primary">Start</button>
-        </div>
-      </div>
-      
-      <div class="link-repo">
-        <a href="https://github.com/Actable-AI/tts-realtime-demo/tree/main/voicebot-realtime" target="_blank">https://github.com/Actable-AI/tts-realtime-demo</a>
-      </div>
-    </form>
-    
-    <audio id="audioElement" autoplay></audio>
-  </div>
-</div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<!-- Application Configuration -->
-<script type="module">
-  import {STTManager} from './stt.js';
-  import {TTSManager} from './tts.js';
-  import {
-    authTokenInput,
-    openApiKeyInput,
-    promptTextarea,
-    speakerSelect,
-    audioFormatSelect,
-    audioSpeedSelect,
-    messageTextarea,
-    startButton,
-    resetButton,
-    audioElement,
-    MicrophoneStatusEnum,
-    setMicrophoneStatus,
-    updateUI,
-    initializeEventListeners,
-    initializeApp,
-    addAudioChunk,
-    getNextAudioChunk,
-    hasAudioChunks,
-    setProcessingTTS,
-    isProcessingTTS,
-    isStartRecording,
-    authToken,
-    openApiKey,
-    prompt,
-    currentSpeaker,
-    audioFormat,
-    audioSpeed,
-    setAuthToken,
-    setOpenApiKey,
-    setPrompt,
-    setCurrentSpeaker,
-    setAudioFormat,
-    setAudioSpeed,
-    setIsStartRecording
-  } from './app.js';
-  
-  // API Configuration
-  window.API_CONFIG = {
-    // STT API
-    stt: {
-      baseUrl: "https://dev-api.blaze.vn/v1",
-      config: {
-        lazyProcess: false
-      }
-    },
-    // TTS API
-    tts: {
-      baseUrl: "https://dev-api.blaze.vn/v1",
-      config: {
-        normalization: 'basic',
-        language: 'vi',
-        audioFormat: 'mp3',
-        audioQuality: 32,
-        audioSpeed: '1',
-        model: 'v1.5_pro'
-      }
-    },
-    // LLM API (OpenAI)
-    llm: {
-      provider: 'openai',
-      openai: {
-        url: "https://api.openai.com/v1/chat/completions",
-        model: "gpt-4o-mini"
-      },
-    }
-  };
-  
-  // Application Configuration
-  window.APP_CONFIG = {
-    // Voice Configuration
-    voice: {
-      defaultSpeaker: "HN-Nu-2-BL",
-    },
-    // LLM Configuration
-    llm: {
-      defaultPrompt: `Mô tả:
+    <title>Actable AI</title>
+
+    <link rel="stylesheet" href="./style.css" />
+
+    <!-- VAD Web + ONNX Runtime -->
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
+  </head>
+  <body>
+    <div class="main-layout">
+      <div class="layout">
+        <form id="voiceForm">
+          <h2>Voice-bot realtime</h2>
+
+          <div id="layoutVideo" class="layout-video">
+            <div id="gradientRingWrap" class="gradient-ring-wrap">
+              <div id="gradientRing" class="gradient-ring"></div>
+            </div>
+
+            <div id="avatarVideoWrap" class="avatar-video-wrap">
+              <img src="./ky_duyen.png" alt="" />
+              <video
+                id="avatarVideo"
+                src="./ky_duyen_loop.mp4"
+                autoplay
+                muted
+                loop
+                playsinline
+                class="avatar-video"
+              ></video>
+            </div>
+          </div>
+
+          <div class="form-item">
+            <label for="authToken" class="required">Blaze API key</label>
+            <input type="text" id="authToken" required />
+          </div>
+
+          <div class="form-item">
+            <label for="openApiKey" class="required">Open API Key</label>
+            <input type="text" id="openApiKey" required />
+          </div>
+
+          <div class="form-item">
+            <label for="prompt" class="required">Prompt</label>
+            <textarea id="prompt" required></textarea>
+          </div>
+
+          <div class="form-group">
+            <div class="form-item">
+              <label for="speaker">Speaker</label>
+              <select id="speaker"></select>
+            </div>
+
+            <div class="form-item">
+              <label for="audioFormat">Audio format</label>
+              <select id="audioFormat">
+                <option value="mp3">MP3</option>
+                <option value="pcm">PCM</option>
+              </select>
+            </div>
+
+            <div class="form-item">
+              <label for="audioSpeed">Speed</label>
+              <select id="audioSpeed">
+                <option value="0.5">0.5x</option>
+                <option value="0.55">0.55x</option>
+                <option value="0.6">0.6x</option>
+                <option value="0.65">0.65x</option>
+                <option value="0.7">0.7x</option>
+                <option value="0.75">0.75x</option>
+                <option value="0.8">0.8x</option>
+                <option value="0.85">0.85x</option>
+                <option value="0.9">0.9x</option>
+                <option value="0.95">0.95x</option>
+                <option value="1" selected>1x</option>
+                <option value="1.05">1.05x</option>
+                <option value="1.1">1.1x</option>
+                <option value="1.15">1.15x</option>
+                <option value="1.2">1.2x</option>
+                <option value="1.25">1.25x</option>
+                <option value="1.3">1.3x</option>
+                <option value="1.35">1.35x</option>
+                <option value="1.4">1.4x</option>
+                <option value="1.45">1.45x</option>
+                <option value="1.5">1.5x</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-item">
+            <label for="message">Message</label>
+            <textarea id="message" readonly></textarea>
+          </div>
+
+          <div class="form-item">
+            <div class="btn-group">
+              <button type="button" id="resetButton" class="btn">Reset</button>
+              <button type="button" id="startButton" class="btn btn-primary">
+                Start
+              </button>
+            </div>
+          </div>
+
+          <div class="link-repo">
+            <a
+              href="https://github.com/Actable-AI/tts-realtime-demo/tree/main/voicebot-realtime"
+              target="_blank"
+              >https://github.com/Actable-AI/tts-realtime-demo</a
+            >
+          </div>
+        </form>
+
+        <audio id="audioElement" autoplay></audio>
+      </div>
+    </div>
+
+    <!-- Application Configuration -->
+    <script type="module">
+      import { STTManager } from "./stt.js";
+      import { TTSManager } from "./tts.js";
+      import {
+        authTokenInput,
+        openApiKeyInput,
+        promptTextarea,
+        speakerSelect,
+        audioFormatSelect,
+        audioSpeedSelect,
+        messageTextarea,
+        startButton,
+        resetButton,
+        audioElement,
+        MicrophoneStatusEnum,
+        setMicrophoneStatus,
+        updateUI,
+        initializeEventListeners,
+        initializeApp,
+        addAudioChunk,
+        getNextAudioChunk,
+        hasAudioChunks,
+        setProcessingTTS,
+        isProcessingTTS,
+        isStartRecording,
+        authToken,
+        openApiKey,
+        prompt,
+        currentSpeaker,
+        audioFormat,
+        audioSpeed,
+        setAuthToken,
+        setOpenApiKey,
+        setPrompt,
+        setCurrentSpeaker,
+        setAudioFormat,
+        setAudioSpeed,
+        setIsStartRecording,
+      } from "./app.js";
+
+      // API Configuration
+      window.API_CONFIG = {
+        // STT API
+        stt: {
+          baseUrl: "https://api.blaze.vn/v1",
+          config: {
+            lazyProcess: false,
+          },
+        },
+        // TTS API
+        tts: {
+          baseUrl: "https://api.blaze.vn/v1",
+          config: {
+            normalization: "basic",
+            language: "vi",
+            audioFormat: "mp3",
+            audioQuality: 32,
+            audioSpeed: "1",
+            model: "v1.5_pro",
+          },
+        },
+        // LLM API (OpenAI)
+        llm: {
+          provider: "openai",
+          openai: {
+            url: "https://api.openai.com/v1/chat/completions",
+            model: "gpt-4o-mini",
+          },
+        },
+      };
+
+      // Application Configuration
+      window.APP_CONFIG = {
+        // Voice Configuration
+        voice: {
+          defaultSpeaker: "HN-Nu-2-BL",
+        },
+        // LLM Configuration
+        llm: {
+          defaultPrompt: `Mô tả:
 
 Bạn là Nguyễn Cao Kỳ Duyên, một gương mặt nổi bật trong lĩnh vực người mẫu và truyền hình tại Việt Nam.
 Bạn đã đăng quang Hoa hậu Việt Nam 2014 và Miss Universe Vietnam 2024.
@@ -205,330 +218,443 @@ Xưng hô:
 Gọi là "em" nếu đối phương xưng là anh hoặc chị.
 Gọi là "chị" nếu đối phương xưng là em.
 Gọi là "cháu" nếu đối phương xưng là cô, bác, chú, cháu, ông hoặc bà.
-Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi hơn.`
-    }
-  };
-  
-  // Managers
-  let sttManager = null;
-  let ttsManager = null;
-  let tts = '';
-  
-  // Chat History
-  let chatHistory = [];
-  
-  // Stream open ai
-  const streamOpenAI = async (text) => {
-    setMicrophoneStatus(MicrophoneStatusEnum.loading);
-    let ttsBuffer = "";
-    
-    try {
-      // Add user message to history
-      chatHistory.push({"role": "user", "content": text});
-      
-      const messages = [
-        {"role": "system", "content": prompt},
-        ...chatHistory
-      ]
-      const response = await fetch(window.API_CONFIG.llm.openai.url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openApiKey}`,
+Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi hơn.`,
         },
-        body: JSON.stringify({
-          model: window.API_CONFIG.llm.openai.model,
-          messages: messages,
-          stream: true,
-        }),
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
-      }
-      
-      ttsManager.sendEvent('start-session');
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
-      let partial = "";
-      
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        
-        const chunk = decoder.decode(value, { stream: true });
-        partial += chunk;
-        
-        const lines = partial.split("\n").filter((line) => line.trim() !== "");
-        
-        for (const line of lines) {
-          if (line.startsWith("data:")) {
-            const data = line.replace("data: ", "");
-            
-            if (data === "[DONE]") {
-              if (ttsBuffer.trim()) {
-                ttsManager.sendText(ttsBuffer);
-                ttsManager.sendEvent('end-session');
-                ttsBuffer = "";
-              }
-              
-              chatHistory.push({
-                role: "assistant",
-                content: tts.replace("> Assistant: ", ""),
-              });
-              messageTextarea.scrollTop = messageTextarea.scrollHeight;
-              tts = "";
-              return;
-            }
-            
-            try {
-              const parsed = JSON.parse(data);
-              const delta = parsed.choices?.[0]?.delta?.content;
-              if (delta) {
-                ttsBuffer += delta;
-                if (!tts) {
-                  tts = '> Assistant: ' + delta;
-                  messageTextarea.value += '> Assistant: ' + delta;
-                } else {
-                  tts += delta;
-                  messageTextarea.value += delta;
-                }
-                messageTextarea.scrollTop = messageTextarea.scrollHeight;
-                
-                let spaceIndex;
-                while ((spaceIndex = ttsBuffer.indexOf(" ")) !== -1) {
-                  const word = ttsBuffer.slice(0, spaceIndex + 1);
-                  ttsManager.sendText(word);
-                  ttsBuffer = ttsBuffer.slice(spaceIndex + 1);
-                }
-              }
-            } catch (e) {
-              console.error("Lỗi parse:", e);
-            }
-          }
-        }
-        
-        partial = "";
-      }
-    } catch (error) {
-      console.error('OpenAI API error:', error);
-      alert(`Error communicating with AI: ${error.message}`);
-      setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
-    }
-  }
-  
-  // Audio Handler
-  const processNextAudioElement = () => {
-    if (hasAudioChunks()) {
-      setProcessingTTS(true);
-      const nextElement = getNextAudioChunk();
-      
-      audioElement.src = nextElement;
-      setMicrophoneStatus(MicrophoneStatusEnum.talking);
-      
-      audioElement.addEventListener('loadedmetadata', () => {
-        audioElement.play()
-          .then(() => {
-            sttManager.stop()
-            setTimeout(() => {
-              setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
-              
-              if (hasAudioChunks()) {
-                processNextAudioElement();
-              } else {
-                setProcessingTTS(false);
-                sttManager.start()
-              }
-            }, (audioElement.duration || 1) * 1000);
-          })
-          .catch(() => {
-            setMicrophoneStatus(isStartRecording ? MicrophoneStatusEnum.recording : MicrophoneStatusEnum.idle);
+      };
+
+      // Managers
+      let sttManager = null;
+      let ttsManager = null;
+      let tts = "";
+
+      // Chat History
+      let chatHistory = [];
+
+      // Text buffer for TTS processing
+      let ttsTextBuffer = "";
+      let punctuationQueue = [];
+      let processNextAudioElementCount = 0;
+      let punctuationQueueIndex = 0;
+      let hasCheckedFirstThreeWords = false;
+
+      // Stream open ai
+      const streamOpenAI = async (text) => {
+        setMicrophoneStatus(MicrophoneStatusEnum.loading);
+        let ttsBuffer = "";
+
+        try {
+          // Add user message to history
+          chatHistory.push({ role: "user", content: text });
+
+          const messages = [
+            { role: "system", content: prompt },
+            ...chatHistory,
+          ];
+          const response = await fetch(window.API_CONFIG.llm.openai.url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${openApiKey}`,
+            },
+            body: JSON.stringify({
+              model: window.API_CONFIG.llm.openai.model,
+              messages: messages,
+              stream: true,
+            }),
           });
-      }, {once: true});
-    }
-  };
-  
-  // State Management Functions
-  const handleClearState = async () => {
-    if (sttManager) {
-      await sttManager.stop();
-    }
-    if (ttsManager) {
-      ttsManager.disconnect();
-    }
-    setIsStartRecording(false);
-    setMicrophoneStatus(MicrophoneStatusEnum.idle);
-  };
-  
-  const handleReset = async () => {
-    messageTextarea.value = '';
-    chatHistory = [];
-    handleClearState();
-  };
-  
-  // Initialize managers
-  const initializeManagers = () => {
-    try {
-      sttManager = new STTManager({
-        baseUrl: window.API_CONFIG.stt.baseUrl,
-        authToken,
-        config: window.API_CONFIG.stt.config,
-        onTextReceived: (text) => {
-          if (messageTextarea.value) messageTextarea.value += '\n\n'
-          messageTextarea.value += `> User: ${text}\n`;
-          messageTextarea.scrollTop = messageTextarea.scrollHeight;
-          streamOpenAI(text);
-        },
-      });
-      
-      ttsManager = new TTSManager({
-        baseUrl: window.API_CONFIG.tts.baseUrl,
-        authToken,
-        speakerId: currentSpeaker,
-        config: {
-          ...window.API_CONFIG.tts.config,
-          audioFormat: audioFormat,
-          audioSpeed: audioSpeed
-        },
-        onAudioReceived: (audioUrl) => {
-          addAudioChunk(audioUrl);
-          if (!isProcessingTTS()) {
-            processNextAudioElement();
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(
+              `OpenAI API error: ${response.status} - ${errorText}`
+            );
           }
-        },
-        sttManager: sttManager,
-        MicrophoneStatusEnum: MicrophoneStatusEnum,
-        setMicrophoneStatus: setMicrophoneStatus,
-      });
-    } catch (error) {
-      console.error('Error initializing managers:', error);
-      alert('Failed to initialize voice services. Please refresh the page and try again.');
-    }
-  };
-  
-  // Event Handlers
-  const handleStart = async () => {
-    if (!authToken || !currentSpeaker || !openApiKey || !prompt) {
-      return;
-    }
-    
-    if (!sttManager || !ttsManager) {
-      initializeManagers();
-    }
-    
-    setIsStartRecording(!isStartRecording);
-    
-    if (!isStartRecording) {
-      await sttManager.stop();
-      handleClearState();
-    } else {
-      setMicrophoneStatus(MicrophoneStatusEnum.loading);
-      await sttManager.start();
-      ttsManager.connect();
-      setMicrophoneStatus(MicrophoneStatusEnum.recording);
-    }
-  };
-  
-  // Initialize APP
-  initializeApp();
-  
-  // Initialize audio format and speed
-  audioFormatSelect.value = audioFormat;
-  audioSpeedSelect.value = audioSpeed;
-  
-  // Fetch speakers and initialize UI
-  const initializeTTS = async () => {
-    try {
-      if (!ttsManager) {
-        ttsManager = new TTSManager({
-          baseUrl: window.API_CONFIG.tts.baseUrl,
-          config: {
-            ...window.API_CONFIG.tts.config,
-            audioFormat: audioFormat,
-            audioSpeed: audioSpeed
+
+          ttsManager.sendEvent("start-session");
+          ttsTextBuffer = "";
+          punctuationQueue = [];
+          processNextAudioElementCount = 0;
+          punctuationQueueIndex = 0;
+          hasCheckedFirstThreeWords = false;
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let partial = "";
+
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            partial += chunk;
+
+            const lines = partial
+              .split("\n")
+              .filter((line) => line.trim() !== "");
+
+            for (const line of lines) {
+              if (line.startsWith("data:")) {
+                const data = line.replace("data: ", "");
+
+                if (data === "[DONE]") {
+                  if (ttsBuffer.trim()) {
+                    ttsManager.sendText(ttsBuffer);
+                    ttsManager.sendEvent("end-session");
+                    ttsBuffer = "";
+                  }
+
+                  chatHistory.push({
+                    role: "assistant",
+                    content: tts.replace("> Assistant: ", ""),
+                  });
+                  messageTextarea.scrollTop = messageTextarea.scrollHeight;
+                  tts = "";
+                  return;
+                }
+
+                try {
+                  const parsed = JSON.parse(data);
+                  const delta = parsed.choices?.[0]?.delta?.content;
+                  if (delta) {
+                    ttsBuffer += delta;
+                    ttsTextBuffer += delta;
+                    if (!tts) {
+                      tts = "> Assistant: " + delta;
+                      messageTextarea.value += "> Assistant: " + delta;
+                    } else {
+                      tts += delta;
+                      messageTextarea.value += delta;
+                    }
+                    messageTextarea.scrollTop = messageTextarea.scrollHeight;
+
+                    const punctuationChars = [",", ";", ":", ".", "!", "?"];
+                    for (let i = 0; i < delta.length; i++) {
+                      const char = delta[i];
+                      if (punctuationChars.includes(char)) {
+                        punctuationQueue.push(char);
+                      }
+                    }
+
+                    let spaceIndex;
+                    while ((spaceIndex = ttsBuffer.indexOf(" ")) !== -1) {
+                      const word = ttsBuffer.slice(0, spaceIndex + 1);
+                      ttsManager.sendText(word);
+                      ttsBuffer = ttsBuffer.slice(spaceIndex + 1);
+                    }
+                  }
+                } catch (e) {
+                  console.error("Lỗi parse:", e);
+                }
+              }
+            }
+
+            partial = "";
           }
-        });
-      }
-      const speakers = await ttsManager.fetchSpeakers();
-      
-      if (speakers.length === 0) {
-        alert('No speakers available. Please check your connection and try again.');
-        return;
-      }
-      
-      // Clear existing options
-      speakerSelect.innerHTML = '';
-      
-      // Add new options
-      speakers.forEach(speaker => {
-        const option = document.createElement('option');
-        option.value = speaker.id;
-        option.textContent = speaker.name;
-        speakerSelect.appendChild(option);
-      });
-      
-      // Set default value if available
-      if (speakers.length > 0) {
-        const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
-        const item = speakers.find(e => e.id === defaultSpeaker);
-        if (item) {
-          setCurrentSpeaker(item.id);
-          speakerSelect.value = currentSpeaker;
-        } else {
-          setCurrentSpeaker(speakers[0].id);
-          speakerSelect.value = currentSpeaker;
+        } catch (error) {
+          console.error("OpenAI API error:", error);
+          alert(`Error communicating with AI: ${error.message}`);
+          setMicrophoneStatus(
+            isStartRecording
+              ? MicrophoneStatusEnum.recording
+              : MicrophoneStatusEnum.idle
+          );
         }
-        
-        if (ttsManager) ttsManager.setSpeakerId(currentSpeaker);
-      }
-      
-      updateUI();
-    } catch (error) {
-      console.error('Error initializing app:', error);
-      alert('Failed to initialize application. Please refresh the page and try again.');
-    }
-  };
-  
-  // Initialize event listeners
-  initializeEventListeners();
-  
-  // Add manager-related event listeners
-  authTokenInput.addEventListener('input', (e) => {
-    setAuthToken(e.target.value.trim());
-    if (sttManager) sttManager.setAuthToken(authToken);
-    if (ttsManager) ttsManager.setAuthToken(authToken);
-  });
-  
-  openApiKeyInput.addEventListener('input', (e) => {
-    setOpenApiKey(e.target.value.trim())
-    updateUI();
-  });
-  
-  promptTextarea.addEventListener('input', (e) => {
-    setPrompt(e.target.value.trim());
-    updateUI();
-  });
-  
-  speakerSelect.addEventListener('change', (e) => {
-    setCurrentSpeaker(e.target.value);
-    if (ttsManager) ttsManager.setSpeakerId(e.target.value);
-  });
-  
-  audioFormatSelect.addEventListener('change', (e) => {
-    setAudioFormat(e.target.value);
-    if (ttsManager) ttsManager.setAudioFormat(e.target.value);
-  });
-  
-  audioSpeedSelect.addEventListener('change', (e) => {
-    setAudioSpeed(e.target.value);
-    if (ttsManager) ttsManager.setAudioSpeed(e.target.value);
-  });
-  
-  startButton.addEventListener('click', handleStart);
-  resetButton.addEventListener('click', handleReset);
-  
-  initializeTTS();
-</script>
-</body>
+      };
+
+      const callProcessNextAudioElementWithDelay = () => {
+        if (processNextAudioElementCount === 0) {
+          processNextAudioElement();
+          return;
+        }
+
+        let timeout = 0;
+
+        if (punctuationQueueIndex < punctuationQueue.length) {
+          const punctuation = punctuationQueue[punctuationQueueIndex];
+          punctuationQueueIndex++;
+
+          const punctuationTimeoutMap = {
+            ",": 600,
+            ".": 1000,
+            ";": 800,
+            ":": 800,
+            "!": 1000,
+            "?": 1000,
+          };
+
+          timeout = punctuationTimeoutMap[punctuation] || 0;
+        }
+
+        if (!hasCheckedFirstThreeWords) {
+          hasCheckedFirstThreeWords = true;
+
+          const firstThreeWords = ttsTextBuffer
+            .trim()
+            .split(/\s+/)
+            .slice(0, 3)
+            .join(" ");
+          const punctuationChars = [",", ".", ";", ":", "!", "?"];
+
+          const hasPunctuationInFirstThree = punctuationChars.some((char) =>
+            firstThreeWords.includes(char)
+          );
+
+          if (!hasPunctuationInFirstThree) {
+            timeout = 0;
+          } else {
+            const words = firstThreeWords.trim().split(/\s+/);
+            const lastWord = words[words.length - 1];
+
+            const endsWithPunctuation = punctuationChars.some((char) =>
+              lastWord.endsWith(char)
+            );
+
+            if (!endsWithPunctuation) {
+              timeout = 0;
+            }
+          }
+        }
+
+        if (timeout > 0) {
+          setTimeout(() => {
+            processNextAudioElement();
+          }, timeout);
+        } else {
+          processNextAudioElement();
+        }
+      };
+
+      // Audio Handler
+      const processNextAudioElement = () => {
+        processNextAudioElementCount++;
+
+        if (hasAudioChunks()) {
+          setProcessingTTS(true);
+          const nextElement = getNextAudioChunk();
+
+          audioElement.src = nextElement;
+          setMicrophoneStatus(MicrophoneStatusEnum.talking);
+
+          audioElement.addEventListener(
+            "loadedmetadata",
+            () => {
+              audioElement
+                .play()
+                .then(() => {
+                  sttManager.stop();
+                  setTimeout(() => {
+                    setMicrophoneStatus(
+                      isStartRecording
+                        ? MicrophoneStatusEnum.recording
+                        : MicrophoneStatusEnum.idle
+                    );
+
+                    if (hasAudioChunks()) {
+                      callProcessNextAudioElementWithDelay();
+                    } else {
+                      setProcessingTTS(false);
+                      sttManager.start();
+                    }
+                  }, (audioElement.duration || 1) * 1000);
+                })
+                .catch(() => {
+                  setMicrophoneStatus(
+                    isStartRecording
+                      ? MicrophoneStatusEnum.recording
+                      : MicrophoneStatusEnum.idle
+                  );
+                });
+            },
+            { once: true }
+          );
+        }
+      };
+
+      // State Management Functions
+      const handleClearState = async () => {
+        if (sttManager) {
+          await sttManager.stop();
+        }
+        if (ttsManager) {
+          ttsManager.disconnect();
+        }
+        setIsStartRecording(false);
+        setMicrophoneStatus(MicrophoneStatusEnum.idle);
+      };
+
+      const handleReset = async () => {
+        messageTextarea.value = "";
+        chatHistory = [];
+        handleClearState();
+      };
+
+      // Initialize managers
+      const initializeManagers = () => {
+        try {
+          sttManager = new STTManager({
+            baseUrl: window.API_CONFIG.stt.baseUrl,
+            authToken,
+            config: window.API_CONFIG.stt.config,
+            onTextReceived: (text) => {
+              if (messageTextarea.value) messageTextarea.value += "\n\n";
+              messageTextarea.value += `> User: ${text}\n`;
+              messageTextarea.scrollTop = messageTextarea.scrollHeight;
+              streamOpenAI(text);
+            },
+          });
+
+          ttsManager = new TTSManager({
+            baseUrl: window.API_CONFIG.tts.baseUrl,
+            authToken,
+            speakerId: currentSpeaker,
+            config: {
+              ...window.API_CONFIG.tts.config,
+              audioFormat: audioFormat,
+              audioSpeed: audioSpeed,
+            },
+            onAudioReceived: (audioUrl) => {
+              addAudioChunk(audioUrl);
+              if (!isProcessingTTS()) {
+                callProcessNextAudioElementWithDelay();
+              }
+            },
+            sttManager: sttManager,
+            MicrophoneStatusEnum: MicrophoneStatusEnum,
+            setMicrophoneStatus: setMicrophoneStatus,
+          });
+        } catch (error) {
+          console.error("Error initializing managers:", error);
+          alert(
+            "Failed to initialize voice services. Please refresh the page and try again."
+          );
+        }
+      };
+
+      // Event Handlers
+      const handleStart = async () => {
+        if (!authToken || !currentSpeaker || !openApiKey || !prompt) {
+          return;
+        }
+
+        if (!sttManager || !ttsManager) {
+          initializeManagers();
+        }
+
+        setIsStartRecording(!isStartRecording);
+
+        if (!isStartRecording) {
+          await sttManager.stop();
+          handleClearState();
+        } else {
+          setMicrophoneStatus(MicrophoneStatusEnum.loading);
+          await sttManager.start();
+          ttsManager.connect();
+          setMicrophoneStatus(MicrophoneStatusEnum.recording);
+        }
+      };
+
+      // Initialize APP
+      initializeApp();
+
+      // Initialize audio format and speed
+      audioFormatSelect.value = audioFormat;
+      audioSpeedSelect.value = audioSpeed;
+
+      // Fetch speakers and initialize UI
+      const initializeTTS = async () => {
+        try {
+          if (!ttsManager) {
+            ttsManager = new TTSManager({
+              baseUrl: window.API_CONFIG.tts.baseUrl,
+              config: {
+                ...window.API_CONFIG.tts.config,
+                audioFormat: audioFormat,
+                audioSpeed: audioSpeed,
+              },
+            });
+          }
+          const speakers = await ttsManager.fetchSpeakers();
+
+          if (speakers.length === 0) {
+            alert(
+              "No speakers available. Please check your connection and try again."
+            );
+            return;
+          }
+
+          // Clear existing options
+          speakerSelect.innerHTML = "";
+
+          // Add new options
+          speakers.forEach((speaker) => {
+            const option = document.createElement("option");
+            option.value = speaker.id;
+            option.textContent = speaker.name;
+            speakerSelect.appendChild(option);
+          });
+
+          // Set default value if available
+          if (speakers.length > 0) {
+            const defaultSpeaker = window.APP_CONFIG.voice.defaultSpeaker;
+            const item = speakers.find((e) => e.id === defaultSpeaker);
+            if (item) {
+              setCurrentSpeaker(item.id);
+              speakerSelect.value = currentSpeaker;
+            } else {
+              setCurrentSpeaker(speakers[0].id);
+              speakerSelect.value = currentSpeaker;
+            }
+
+            if (ttsManager) ttsManager.setSpeakerId(currentSpeaker);
+          }
+
+          updateUI();
+        } catch (error) {
+          console.error("Error initializing app:", error);
+          alert(
+            "Failed to initialize application. Please refresh the page and try again."
+          );
+        }
+      };
+
+      // Initialize event listeners
+      initializeEventListeners();
+
+      // Add manager-related event listeners
+      authTokenInput.addEventListener("input", (e) => {
+        setAuthToken(e.target.value.trim());
+        if (sttManager) sttManager.setAuthToken(authToken);
+        if (ttsManager) ttsManager.setAuthToken(authToken);
+      });
+
+      openApiKeyInput.addEventListener("input", (e) => {
+        setOpenApiKey(e.target.value.trim());
+        updateUI();
+      });
+
+      promptTextarea.addEventListener("input", (e) => {
+        setPrompt(e.target.value.trim());
+        updateUI();
+      });
+
+      speakerSelect.addEventListener("change", (e) => {
+        setCurrentSpeaker(e.target.value);
+        if (ttsManager) ttsManager.setSpeakerId(e.target.value);
+      });
+
+      audioFormatSelect.addEventListener("change", (e) => {
+        setAudioFormat(e.target.value);
+        if (ttsManager) ttsManager.setAudioFormat(e.target.value);
+      });
+
+      audioSpeedSelect.addEventListener("change", (e) => {
+        setAudioSpeed(e.target.value);
+        if (ttsManager) ttsManager.setAudioSpeed(e.target.value);
+      });
+
+      startButton.addEventListener("click", handleStart);
+      resetButton.addEventListener("click", handleReset);
+
+      initializeTTS();
+    </script>
+  </body>
 </html>
