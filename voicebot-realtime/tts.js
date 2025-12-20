@@ -386,7 +386,7 @@ class TTSManager {
 
   _handleSuccessfulAuthentication() {
     if (this.wsRef?.readyState === WebSocket.OPEN) {
-      this.sendEvent('start-session');
+      this.sendEvent('speech-start');
 
       setTimeout(() => {
         this.sendText('Xin chào,');
@@ -396,7 +396,7 @@ class TTSManager {
         this.sendText('Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
       }, 500);
 
-      this.sendEvent('end-session');
+      this.sendEvent('speech-end');
     }
   }
 
@@ -487,12 +487,12 @@ class TTSManager {
   // WEBSOCKET MESSAGE SENDING
   // ============================================================================
 
-  sendEvent(event) {
+  sendEvent(event, data) {
     if (!event || !this.wsRef || this.wsRef.readyState !== WebSocket.OPEN) {
       throw new Error('Cannot send event');
     }
 
-    const queryEvent = { event };
+    const queryEvent = { event, ...data };
     this.wsRef.send(JSON.stringify(queryEvent));
   }
 
