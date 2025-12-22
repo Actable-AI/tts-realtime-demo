@@ -166,14 +166,14 @@
       window.API_CONFIG = {
         // STT API
         stt: {
-          baseUrl: "https://api.blaze.vn/v1",
+          baseUrl: "https://dev-api.blaze.vn/v1",
           config: {
             lazyProcess: false,
           },
         },
         // TTS API
         tts: {
-          baseUrl: "https://api.blaze.vn/v1",
+          baseUrl: "https://dev-api.blaze.vn/v1",
           config: {
             normalization: "basic",
             language: "vi",
@@ -230,13 +230,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
       // Chat History
       let chatHistory = [];
 
-      // Text buffer for TTS processing
-      let ttsTextBuffer = "";
-      let punctuationQueue = [];
-      let processNextAudioElementCount = 0;
-      let punctuationQueueIndex = 0;
-      let hasCheckedFirstThreeWords = false;
-
       // Stream open ai
       const streamOpenAI = async (text) => {
         setMicrophoneStatus(MicrophoneStatusEnum.loading);
@@ -270,12 +263,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             );
           }
 
-          ttsManager.sendEvent("start-session");
-          ttsTextBuffer = "";
-          punctuationQueue = [];
-          processNextAudioElementCount = 0;
-          punctuationQueueIndex = 0;
-          hasCheckedFirstThreeWords = false;
+          ttsManager.sendEvent("speech-start", { pause_between_sentences: true });
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8");
           let partial = "";
@@ -298,7 +286,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                 if (data === "[DONE]") {
                   if (ttsBuffer.trim()) {
                     ttsManager.sendText(ttsBuffer);
-                    ttsManager.sendEvent("end-session");
+                    ttsManager.sendEvent("speech-end");
                     ttsBuffer = "";
                   }
 
@@ -316,7 +304,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                   const delta = parsed.choices?.[0]?.delta?.content;
                   if (delta) {
                     ttsBuffer += delta;
-                    ttsTextBuffer += delta;
                     if (!tts) {
                       tts = "> Assistant: " + delta;
                       messageTextarea.value += "> Assistant: " + delta;
@@ -325,14 +312,6 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                       messageTextarea.value += delta;
                     }
                     messageTextarea.scrollTop = messageTextarea.scrollHeight;
-
-                    const punctuationChars = [",", ";", ":", ".", "!", "?"];
-                    for (let i = 0; i < delta.length; i++) {
-                      const char = delta[i];
-                      if (punctuationChars.includes(char)) {
-                        punctuationQueue.push(char);
-                      }
-                    }
 
                     let spaceIndex;
                     while ((spaceIndex = ttsBuffer.indexOf(" ")) !== -1) {
@@ -360,73 +339,8 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         }
       };
 
-      const callProcessNextAudioElementWithDelay = () => {
-        if (processNextAudioElementCount === 0) {
-          processNextAudioElement();
-          return;
-        }
-
-        let timeout = 0;
-
-        if (punctuationQueueIndex < punctuationQueue.length) {
-          const punctuation = punctuationQueue[punctuationQueueIndex];
-          punctuationQueueIndex++;
-
-          const punctuationTimeoutMap = {
-            ",": 600,
-            ".": 1000,
-            ";": 800,
-            ":": 800,
-            "!": 1000,
-            "?": 1000,
-          };
-
-          timeout = punctuationTimeoutMap[punctuation] || 0;
-        }
-
-        if (!hasCheckedFirstThreeWords) {
-          hasCheckedFirstThreeWords = true;
-
-          const firstThreeWords = ttsTextBuffer
-            .trim()
-            .split(/\s+/)
-            .slice(0, 3)
-            .join(" ");
-          const punctuationChars = [",", ".", ";", ":", "!", "?"];
-
-          const hasPunctuationInFirstThree = punctuationChars.some((char) =>
-            firstThreeWords.includes(char)
-          );
-
-          if (!hasPunctuationInFirstThree) {
-            timeout = 0;
-          } else {
-            const words = firstThreeWords.trim().split(/\s+/);
-            const lastWord = words[words.length - 1];
-
-            const endsWithPunctuation = punctuationChars.some((char) =>
-              lastWord.endsWith(char)
-            );
-
-            if (!endsWithPunctuation) {
-              timeout = 0;
-            }
-          }
-        }
-
-        if (timeout > 0) {
-          setTimeout(() => {
-            processNextAudioElement();
-          }, timeout);
-        } else {
-          processNextAudioElement();
-        }
-      };
-
       // Audio Handler
       const processNextAudioElement = () => {
-        processNextAudioElementCount++;
-
         if (hasAudioChunks()) {
           setProcessingTTS(true);
           const nextElement = getNextAudioChunk();
@@ -449,7 +363,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                     );
 
                     if (hasAudioChunks()) {
-                      callProcessNextAudioElementWithDelay();
+                      processNextAudioElement();
                     } else {
                       setProcessingTTS(false);
                       sttManager.start();
@@ -514,7 +428,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             onAudioReceived: (audioUrl) => {
               addAudioChunk(audioUrl);
               if (!isProcessingTTS()) {
-                callProcessNextAudioElementWithDelay();
+                processNextAudioElement();
               }
             },
             sttManager: sttManager,
