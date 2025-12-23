@@ -263,7 +263,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             );
           }
 
-          ttsManager.sendEvent("speech-start", { pause_between_sentences: true });
+          ttsManager.sendEvent("speech-start");
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8");
           let partial = "";

@@ -386,7 +386,7 @@ class TTSManager {
 
   _handleSuccessfulAuthentication() {
     if (this.wsRef?.readyState === WebSocket.OPEN) {
-      this.sendEvent('speech-start', { pause_between_sentences: true });
+      this.sendEvent('speech-start');
       setTimeout(() => {
         this.sendText('Xin chào,');
       }, 100);
