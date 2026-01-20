@@ -268,3 +268,185 @@ h2 {
   text-align: center;
   font-style: italic;
 }
+
+.punctuation-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  /* cursor: pointer; */
+  padding-top: 24px;
+  user-select: none;
+  border-top: 1px solid #eee;
+  margin-bottom: 0;
+  transition: border-color 0.2s;
+}
+
+/* .punctuation-config-header:hover {
+  border-bottom-color: #4a90e2;
+}
+
+.punctuation-config-header label {
+  margin: 0;
+  font-weight: 500;
+  color: #333;
+  cursor: pointer;
+} */
+
+.toggle-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  font-size: 14px;
+  color: #666;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.toggle-btn:hover {
+  color: #4a90e2;
+  background-color: #f0f7ff;
+}
+
+.toggle-btn.rotated #toggleIcon {
+  transform: rotate(180deg);
+}
+
+#toggleIcon {
+  display: inline-block;
+  transition: transform 0.3s ease;
+  font-size: 12px;
+}
+
+.punctuation-config-collapsible {
+  margin-top: 12px;
+  overflow: hidden;
+  animation: slideDown 0.3s ease-out;
+}
+
+.punctuation-config-collapsible[style*="display: none"] {
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 1000px;
+    margin-top: 12px;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 1;
+    max-height: 1000px;
+    margin-top: 12px;
+  }
+  to {
+    opacity: 0;
+    max-height: 0;
+    margin-top: 0;
+  }
+}
+
+.punctuation-config {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.punctuation-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.punctuation-item label {
+  font-size: 13px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 0;
+}
+
+.input-with-unit {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.punctuation-item input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: padding-right 0.2s ease;
+}
+
+.punctuation-item input::-webkit-outer-spin-button,
+.punctuation-item input::-webkit-inner-spin-button {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.punctuation-item input:hover::-webkit-outer-spin-button,
+.punctuation-item input:hover::-webkit-inner-spin-button {
+  opacity: 1;
+}
+
+.punctuation-item input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.punctuation-item input:focus::-webkit-outer-spin-button,
+.punctuation-item input:focus::-webkit-inner-spin-button {
+  opacity: 1;
+}
+
+.input-with-unit .unit {
+  position: absolute;
+  right: 8px;
+  font-size: 13px;
+  color: #666;
+  pointer-events: none;
+  user-select: none;
+  transition: right 0.2s ease;
+}
+
+.input-with-unit:hover .unit,
+.input-with-unit input:focus + .unit {
+  right: 26px;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media screen and (max-width: 600px) {
+  .punctuation-config {
+    grid-template-columns: 1fr;
+  }
+}

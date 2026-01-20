@@ -386,6 +386,11 @@ class TTSManager {
 
   _handleSuccessfulAuthentication() {
     if (this.wsRef?.readyState === WebSocket.OPEN) {
+      // Send punctuation config if available (from global window object)
+      if (typeof window !== 'undefined' && window.punctuationSilenceConfig) {
+        this.sendPunctuationConfig(window.punctuationSilenceConfig);
+      }
+      
       this.sendEvent('speech-start');
       setTimeout(() => {
         this.sendText('Xin chào,');
@@ -552,6 +557,23 @@ class TTSManager {
 
   setAudioSpeed(speed) {
     this.config.audioSpeed = speed;
+  }
+
+  sendPunctuationConfig(punctuationSilenceMap) {
+    if (!this.wsRef || this.wsRef.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send punctuation config: WebSocket not connected');
+      return false;
+    }
+
+    try {
+      this.sendEvent('pause-between-sentences-config', {
+        ...punctuationSilenceMap
+      });
+      return true;
+    } catch (error) {
+      console.error('Error sending punctuation config:', error);
+      return false;
+    }
   }
 }
 

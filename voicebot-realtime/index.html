@@ -11,6 +11,12 @@
     <!-- VAD Web + ONNX Runtime -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.22/dist/bundle.min.js"></script>
+
+    <!-- Toastify CSS -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+
+    <!-- Toastify JS -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   </head>
   <body>
     <div class="main-layout">
@@ -95,6 +101,64 @@
           </div>
 
           <div class="form-item">
+            <div class="punctuation-config-header" id="punctuationConfigHeader">
+              <label>Pause Between Sentences (ms)</label>
+              <!-- <button type="button" class="toggle-btn" id="punctuationToggle" aria-label="Toggle punctuation config">
+                <span id="toggleIcon">▼</span>
+              </button> -->
+            </div>
+            <div class="punctuation-config-collapsible" id="punctuationConfigContent">
+              <div class="punctuation-config">
+                <div class="punctuation-item">
+                  <label for="silenceComma">Comma (,)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silenceComma" min="0" max="5000" step="100" value="600" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+                <div class="punctuation-item">
+                  <label for="silencePeriod">Period (.)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silencePeriod" min="0" max="5000" step="100" value="500" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+                <div class="punctuation-item">
+                  <label for="silenceSemicolon">Semicolon (;)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silenceSemicolon" min="0" max="5000" step="100" value="800" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+                <div class="punctuation-item">
+                  <label for="silenceColon">Colon (:)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silenceColon" min="0" max="5000" step="100" value="800" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+                <div class="punctuation-item">
+                  <label for="silenceExclamation">Exclamation (!)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silenceExclamation" min="0" max="5000" step="100" value="1000" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+                <div class="punctuation-item">
+                  <label for="silenceQuestion">Question mark (?)</label>
+                  <div class="input-with-unit">
+                    <input type="number" id="silenceQuestion" min="0" max="5000" step="100" value="1000" />
+                    <span class="unit">ms</span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" id="applyPunctuationConfig" class="btn btn-secondary">
+                Apply Configuration
+              </button>
+            </div>
+          </div>
+
+          <div class="form-item">
             <label for="message">Message</label>
             <textarea id="message" readonly></textarea>
           </div>
@@ -160,6 +224,16 @@
         setAudioFormat,
         setAudioSpeed,
         setIsStartRecording,
+        silenceCommaInput,
+        silencePeriodInput,
+        silenceSemicolonInput,
+        silenceColonInput,
+        silenceExclamationInput,
+        silenceQuestionInput,
+        applyPunctuationConfigButton,
+        setPunctuationSilenceConfig,
+        getPunctuationSilenceConfig,
+        punctuationSilenceConfig,
       } from "./app.js";
 
       // API Configuration
@@ -229,6 +303,40 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
 
       // Chat History
       let chatHistory = [];
+
+      // Toast notification helper function
+      const showToast = (message, type = 'info') => {
+        const configs = {
+          success: {
+            background: "#4caf50",
+            duration: 3000
+          },
+          error: {
+            background: "#f44336",
+            duration: 3000
+          },
+          warning: {
+            background: "#ff9800",
+            duration: 3000
+          },
+          info: {
+            background: "#2196f3",
+            duration: 3000
+          }
+        };
+
+        const config = configs[type] || configs.info;
+        
+        Toastify({
+          text: message,
+          duration: config.duration,
+          gravity: "top",
+          position: "right",
+          style: {
+            background: config.background,
+          }
+        }).showToast();
+      };
 
       // Stream open ai
       const streamOpenAI = async (text) => {
@@ -330,7 +438,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           }
         } catch (error) {
           console.error("OpenAI API error:", error);
-          alert(`Error communicating with AI: ${error.message}`);
+          showToast(`Error communicating with AI: ${error.message}`, 'error');
           setMicrophoneStatus(
             isStartRecording
               ? MicrophoneStatusEnum.recording
@@ -435,10 +543,14 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             MicrophoneStatusEnum: MicrophoneStatusEnum,
             setMicrophoneStatus: setMicrophoneStatus,
           });
+          
+          // Store punctuation config globally for TTSManager to access
+          window.punctuationSilenceConfig = getPunctuationSilenceConfig();
         } catch (error) {
           console.error("Error initializing managers:", error);
-          alert(
-            "Failed to initialize voice services. Please refresh the page and try again."
+          showToast(
+            "Failed to initialize voice services. Please refresh the page and try again.",
+            'error'
           );
         }
       };
@@ -460,6 +572,8 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           handleClearState();
         } else {
           setMicrophoneStatus(MicrophoneStatusEnum.loading);
+          // Update global punctuation config before connecting
+          window.punctuationSilenceConfig = getPunctuationSilenceConfig();
           await sttManager.start();
           ttsManager.connect();
           setMicrophoneStatus(MicrophoneStatusEnum.recording);
@@ -489,8 +603,9 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           const speakers = await ttsManager.fetchSpeakers();
 
           if (speakers.length === 0) {
-            alert(
-              "No speakers available. Please check your connection and try again."
+            showToast(
+              "No speakers available. Please check your connection and try again.",
+              'warning'
             );
             return;
           }
@@ -524,8 +639,9 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
           updateUI();
         } catch (error) {
           console.error("Error initializing app:", error);
-          alert(
-            "Failed to initialize application. Please refresh the page and try again."
+          showToast(
+            "Failed to initialize application. Please refresh the page and try again.",
+            'error'
           );
         }
       };
@@ -564,6 +680,85 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
         setAudioSpeed(e.target.value);
         if (ttsManager) ttsManager.setAudioSpeed(e.target.value);
       });
+
+      // Punctuation config event listeners
+      const updatePunctuationConfigFromUI = () => {
+        const config = {
+          'comma_pause': parseInt(silenceCommaInput.value) || 600,
+          'dot_pause': parseInt(silencePeriodInput.value) || 1000,
+          'semicolon_pause': parseInt(silenceSemicolonInput.value) || 800,
+          'colon_pause': parseInt(silenceColonInput.value) || 800,
+          'exclamation_pause': parseInt(silenceExclamationInput.value) || 1000,
+          'question_pause': parseInt(silenceQuestionInput.value) || 1000,
+        };
+        setPunctuationSilenceConfig(config);
+        // Save to global for TTSManager to access
+        window.punctuationSilenceConfig = config;
+        return config;
+      };
+
+      const sendPunctuationConfig = () => {
+        // Always save config first
+        const config = updatePunctuationConfigFromUI();
+        
+        // If TTS is connected, send immediately
+        if (ttsManager && ttsManager.wsRef && ttsManager.wsRef.readyState === WebSocket.OPEN) {
+          const success = ttsManager.sendPunctuationConfig(config);
+          if (success) {
+            showToast('Configuration applied successfully!', 'success');
+          } else {
+            showToast('Failed to send configuration. Please try again.', 'error');
+          }
+        } else {
+          showToast('Configuration applied successfully!', 'success');
+        }
+      };
+
+      if (applyPunctuationConfigButton) {
+        applyPunctuationConfigButton.addEventListener("click", sendPunctuationConfig);
+      }
+
+      // Initialize punctuation config inputs with default values
+      if (silenceCommaInput) silenceCommaInput.value = punctuationSilenceConfig['comma_pause'];
+      if (silencePeriodInput) silencePeriodInput.value = punctuationSilenceConfig['dot_pause'];
+      if (silenceSemicolonInput) silenceSemicolonInput.value = punctuationSilenceConfig['semicolon_pause'];
+      if (silenceColonInput) silenceColonInput.value = punctuationSilenceConfig['colon_pause'];
+      if (silenceExclamationInput) silenceExclamationInput.value = punctuationSilenceConfig['exclamation_pause'];
+      if (silenceQuestionInput) silenceQuestionInput.value = punctuationSilenceConfig['question_pause'];
+
+      // Initialize global config (will be auto-sent when TTS connects)
+      window.punctuationSilenceConfig = getPunctuationSilenceConfig();
+
+      // Toggle punctuation config collapsible
+      const togglePunctuationConfig = () => {
+        const content = document.getElementById('punctuationConfigContent');
+        const icon = document.getElementById('toggleIcon');
+        const toggleBtn = document.getElementById('punctuationToggle');
+        const isHidden = content.style.display === 'none' || !content.style.display;
+        
+        if (isHidden) {
+          content.style.display = 'block';
+          icon.textContent = '▲';
+          toggleBtn.classList.add('rotated');
+        } else {
+          content.style.display = 'none';
+          icon.textContent = '▼';
+          toggleBtn.classList.remove('rotated');
+        }
+      };
+
+      // Add click event to header and toggle button
+      // const punctuationConfigHeader = document.getElementById('punctuationConfigHeader');
+      // const punctuationToggle = document.getElementById('punctuationToggle');
+      // if (punctuationConfigHeader) {
+      //   punctuationConfigHeader.addEventListener('click', togglePunctuationConfig);
+      // }
+      // if (punctuationToggle) {
+      //   punctuationToggle.addEventListener('click', (e) => {
+      //     e.stopPropagation();
+      //     togglePunctuationConfig();
+      //   });
+      // }
 
       startButton.addEventListener("click", handleStart);
       resetButton.addEventListener("click", handleReset);

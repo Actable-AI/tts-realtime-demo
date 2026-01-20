@@ -9,6 +9,13 @@ export const messageTextarea = document.getElementById('message');
 export const startButton = document.getElementById('startButton');
 export const resetButton = document.getElementById('resetButton');
 export const audioElement = document.getElementById('audioElement');
+export const silenceCommaInput = document.getElementById('silenceComma');
+export const silencePeriodInput = document.getElementById('silencePeriod');
+export const silenceSemicolonInput = document.getElementById('silenceSemicolon');
+export const silenceColonInput = document.getElementById('silenceColon');
+export const silenceExclamationInput = document.getElementById('silenceExclamation');
+export const silenceQuestionInput = document.getElementById('silenceQuestion');
+export const applyPunctuationConfigButton = document.getElementById('applyPunctuationConfig');
 
 export const MicrophoneStatusEnum = {
   loading: 'loading',
@@ -35,6 +42,14 @@ export let audioFormat = 'mp3';
 export let audioSpeed = '1';
 export let arrAudioChunks = [];
 export let isProcessingTts = false;
+export let punctuationSilenceConfig = {
+  'comma_pause': 600,
+  'dot_pause': 500,
+  'semicolon_pause': 800,
+  'colon_pause': 800,
+  'exclamation_pause': 1000,
+  'question_pause': 1000,
+};
 
 // Helper Functions
 export const setMicrophoneStatus = (status) => {
@@ -70,6 +85,15 @@ export const setAudioFormat = (format) => {
 export const setAudioSpeed = (speed) => {
   audioSpeed = speed;
   updateUI();
+};
+
+export const setPunctuationSilenceConfig = (config) => {
+  punctuationSilenceConfig = { ...config };
+  updateUI();
+};
+
+export const getPunctuationSilenceConfig = () => {
+  return { ...punctuationSilenceConfig };
 };
 
 export const setIsStartRecording = (value) => {
