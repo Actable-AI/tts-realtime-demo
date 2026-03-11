@@ -391,7 +391,7 @@ class TTSManager {
         this.sendPunctuationConfig(window.punctuationSilenceConfig);
       }
       
-      this.sendEvent('speech-start');
+      // this.sendEvent('speech-start');
       setTimeout(() => {
         this.sendText('Xin chào,');
       }, 100);
@@ -400,7 +400,7 @@ class TTSManager {
         this.sendText('Tôi là một trợ lý ảo. Bạn có thể giúp tôi với một số thông tin không?');
       }, 500);
 
-      this.sendEvent('speech-end');
+      // this.sendEvent('speech-end');
     }
   }
 

@@ -371,7 +371,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
             );
           }
 
-          ttsManager.sendEvent("speech-start");
+          // ttsManager.sendEvent("speech-start");
           const reader = response.body.getReader();
           const decoder = new TextDecoder("utf-8");
           let partial = "";
@@ -394,7 +394,7 @@ Gọi là "cô" nếu đối phương xưng là cháu và có vẻ lớn tuổi 
                 if (data === "[DONE]") {
                   if (ttsBuffer.trim()) {
                     ttsManager.sendText(ttsBuffer);
-                    ttsManager.sendEvent("speech-end");
+                    // ttsManager.sendEvent("speech-end");
                     ttsBuffer = "";
                   }
 
