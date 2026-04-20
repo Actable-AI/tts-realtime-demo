@@ -1,7 +1,7 @@
 services:
   blaze-voicebot-sample:
     build: .
-    container_name: blaze_voicebot_intergration_sample
+    container_name: voicebot-livekit
     ports:
       - "3099:3099"
     env_file:
