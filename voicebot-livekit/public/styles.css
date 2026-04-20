@@ -24,6 +24,7 @@ body {
 
 .page {
   min-height: 100vh;
+  min-height: 100dvh;
   padding: 8px;
   display: flex;
   justify-content: center;
@@ -37,6 +38,8 @@ body {
 
 .card {
   min-height: calc(100vh - 16px);
+  height: calc(100vh - 16px);
+  height: calc(100dvh - 16px);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
@@ -306,6 +309,8 @@ body {
   padding: 20px;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
   gap: 16px;
 }
 
@@ -319,18 +324,29 @@ body {
 }
 
 .display-image {
-  width: min(100%, 960px);
-  max-width: 100%;
+  display: block;
+  width: auto;
+  max-width: min(100%, 840px);
+  max-height: min(56vh, 640px);
+  height: auto;
   margin: 0 auto;
   object-fit: contain;
   border-radius: 8px;
   border: 1px solid #2f333a;
+  background: #02050b;
 }
 
 @media (max-width: 768px) {
   .card {
     min-height: calc(100vh - 16px);
+    height: calc(100vh - 16px);
+    height: calc(100dvh - 16px);
     grid-template-rows: 48% 52%;
+  }
+
+  .display-image {
+    max-width: 100%;
+    max-height: min(48dvh, 420px);
   }
 
   .avatar {

@@ -401,35 +401,6 @@ async function createSession() {
   return payload;
 }
 
-async function refreshImageMappingsIfNeeded() {
-  if (Object.keys(state.imageMappingMap).length > 0) return;
-  if (!state.credentials?.apiToken || !state.credentials?.voicebotId) return;
-
-  try {
-    const res = await fetch('/api/mappings', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        apiToken: state.credentials.apiToken,
-        voicebotId: state.credentials.voicebotId,
-      }),
-    });
-
-    if (!res.ok) {
-      debugImg('refresh mappings failed', { status: res.status });
-      return;
-    }
-
-    const data = await res.json().catch(() => ({}));
-    state.imageMappingMap = buildImageMappingMap(data.imageMappings || []);
-    debugImg('refresh mappings success', {
-      count: Object.keys(state.imageMappingMap).length,
-    });
-  } catch {
-    debugImg('refresh mappings error');
-  }
-}
-
 // ── Room ──────────────────────────────────────────────────────────────────────
 
 function cleanupAudioElements() {
@@ -520,8 +491,16 @@ async function startConversation() {
   clearImageArea();
 
   try {
-    await refreshImageMappingsIfNeeded();
     const session = await createSession();
+
+    if (Array.isArray(session.imageMappings) && session.imageMappings.length > 0) {
+      state.imageMappingMap = buildImageMappingMap(session.imageMappings);
+      debugImg('imageMappings loaded from session', {
+        count: session.imageMappings.length,
+      });
+    } else {
+      debugImg('session returned no imageMappings');
+    }
 
     // Name and avatar are already set in handleSetupConnect() from /api/connect.
     // Do NOT overwrite — the session endpoint may return botID as the name

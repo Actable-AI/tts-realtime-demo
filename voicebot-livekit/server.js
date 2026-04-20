@@ -137,14 +137,37 @@ app.post('/api/mappings', async (req, res) => {
     });
   }
 
-  const result = await fetchVoicebotProfile(EXTERNAL_API_BASE_URL, apiToken, voicebotId);
-  if (!result.ok) {
-    const msg = result.payload?.detail?.message || result.payload?.message || 'Failed to fetch mappings';
-    return res.status(result.status || 500).json({ error: msg, code: 'mappings_fetch_failed' });
-  }
+  const apiBaseUrl = EXTERNAL_API_BASE_URL.replace(/\/$/, '');
+  const libraryPath = `/v1/voicebot-livekit/voicebots/${encodeURIComponent(voicebotId)}/image-mappings/library`;
 
-  const mappings = pickImageMappings(result.profile);
-  return res.json({ imageMappings: mappings });
+  try {
+    const response = await fetch(`${apiBaseUrl}${libraryPath}`, {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${apiToken}`,
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const msg = payload?.detail?.message || payload?.message || 'Failed to fetch mappings';
+      return res.status(response.status).json({ error: msg, code: 'mappings_fetch_failed' });
+    }
+
+    const imageMappings = Object.entries(payload || {}).map(([imageKey, imageUrl]) => ({
+      imageKey,
+      imageUrl,
+    }));
+
+    return res.json({ imageMappings });
+  } catch (error) {
+    return res.status(500).json({
+      error: 'Cannot fetch mappings from external API',
+      code: 'mappings_unreachable',
+      detail: error instanceof Error ? error.message : String(error),
+    });
+  }
 });
 
 app.get('/api/health', (req, res) => {
