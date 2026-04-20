@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Blaze Voicebot External LiveKit Sample</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <!-- ── Setup panel: shown when credentials are not yet configured ── -->
+    <div id="setupPanel" class="setup-panel hidden">
+      <div class="setup-card">
+        <h1 class="setup-title">Cấu hình Voicebot</h1>
+        <p class="setup-subtitle">Nhập thông tin API để kết nối với voicebot của bạn</p>
+
+        <div class="field-group">
+          <label class="field-label" for="apiTokenInput">API Token</label>
+          <input
+            id="apiTokenInput"
+            class="field-input"
+            type="password"
+            placeholder="Bearer token"
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
+
+        <div class="field-group">
+          <label class="field-label" for="voicebotIdInput">Voicebot ID</label>
+          <input
+            id="voicebotIdInput"
+            class="field-input"
+            type="text"
+            placeholder="Voicebot ID"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="24"
+          />
+        </div>
+
+        <button id="setupConnectBtn" class="call-btn" type="button">Kết nối voicebot</button>
+        <p id="setupError" class="error-text hidden"></p>
+      </div>
+    </div>
+
+    <!-- ── Main call UI ── -->
+    <main id="mainPanel" class="page hidden">
+      <section class="card">
+        <section class="top-area">
+          <!-- Settings button to re-open setup panel -->
+          <button id="settingsBtn" class="settings-btn" type="button" title="Thay đổi cấu hình">⚙</button>
+
+          <div id="avatarContainer" class="avatar-container idle">
+            <div class="ripple-ring r1"></div>
+            <div class="ripple-ring r2"></div>
+            <div class="ripple-ring r3"></div>
+            <div class="ripple-ring r4"></div>
+            <div class="user-ripple-ring ur1"></div>
+            <div class="user-ripple-ring ur2"></div>
+            <div class="user-ripple-ring ur3"></div>
+            <div class="breathing-shadow"></div>
+            <div class="glow-ring"></div>
+            <div class="connecting-overlay"></div>
+            <div class="avatar-wrapper">
+              <img id="avatar" class="avatar" alt="voicebot avatar" />
+            </div>
+          </div>
+
+          <h1 id="voicebotName" class="voicebot-name">Voicebot</h1>
+
+          <button id="callButton" class="call-btn" type="button">Bắt đầu cuộc trò chuyện</button>
+
+          <div class="status-row">
+            <span id="statusDot" class="status-dot disconnected"></span>
+            <span id="statusText" class="status-text">Đã ngắt kết nối</span>
+          </div>
+
+          <p id="errorText" class="error-text hidden"></p>
+        </section>
+
+        <section id="imageArea" class="image-area">
+          <p id="placeholder" class="placeholder">Hình ảnh sẽ được hiển thị tại đây</p>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

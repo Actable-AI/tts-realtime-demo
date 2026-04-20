@@ -1,0 +1,9 @@
+services:
+  blaze-voicebot-sample:
+    build: .
+    container_name: blaze_voicebot_intergration_sample
+    ports:
+      - "3099:3099"
+    env_file:
+      - .env
+    restart: unless-stopped
