@@ -1,0 +1,23 @@
+name: Release Voicebot LiveKit
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'voicebot-livekit/**'
+      - '.github/workflows/release-voicebot-livekit.yml'
+jobs:
+  deploy:
+    runs-on: a5000
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild and restart voicebot-livekit
+        env:
+          DEPLOY_DIR: /srv/blaze/deployment/tts-realtime-demo
+        run: |
+          rsync -a --delete ${{ github.workspace }}/ $DEPLOY_DIR/
+          cd $DEPLOY_DIR/
+          git secret reveal -f
+          cd voicebot-livekit && mv .env.develop .env
+          docker compose up -d --build
